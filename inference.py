@@ -16,12 +16,13 @@ from PIL import Image
 import tensorflow as tf
 import numpy as np
 
-from deeplab_resnet import DeepLabResNetModel, ImageReader, decode_labels, prepare_label
+from deeplab_resnet import DeepLabResNetModel, ImageReader, decode_labels, prepare_label, load
 
-IMG_MEAN = np.array((104.00698793,116.66876762,122.67891434), dtype=np.float32)
+IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
     
-NUM_CLASSES = 21
+NUM_CLASSES = 18
 SAVE_DIR = './output/'
+
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.
@@ -40,16 +41,6 @@ def get_arguments():
                         help="Where to save predicted mask.")
     return parser.parse_args()
 
-def load(saver, sess, ckpt_path):
-    '''Load trained weights.
-    
-    Args:
-      saver: TensorFlow saver object.
-      sess: TensorFlow session.
-      ckpt_path: path to checkpoint file with parameters.
-    ''' 
-    saver.restore(sess, ckpt_path)
-    print("Restored model parameters from {}".format(ckpt_path))
 
 def main():
     """Create the model and start the evaluation process."""
@@ -75,7 +66,6 @@ def main():
     raw_output_up = tf.argmax(raw_output_up, dimension=3)
     pred = tf.expand_dims(raw_output_up, dim=3)
 
-    
     # Set up TF session and initialize variables. 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True

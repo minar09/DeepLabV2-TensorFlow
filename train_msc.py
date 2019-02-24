@@ -7,23 +7,21 @@ which contains approximately 10000 images for training and 1500 images for valid
 
 from __future__ import print_function
 
-import argparse
 import time
-
+import os
+import random
 import tensorflow as tf
 import numpy as np
 
 from deeplab_resnet import DeepLabResNetModel, ImageReader, decode_labels, inv_preprocess, prepare_label, load, save
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Hide the warning messages about CPU/GPU
-import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 IMG_MEAN = np.array((104.00698793, 116.66876762, 122.67891434), dtype=np.float32)
 
-BATCH_SIZE = 3
+BATCH_SIZE = 4
 IMAGE_DIR = 'D:/Datasets/Dressup10k/images/training/'
 LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/training/'
 GRAD_UPDATE_EVERY = 10
@@ -37,103 +35,51 @@ NUM_EPOCHS = 30
 SAVE_PRED_EVERY = NUM_IMAGES // BATCH_SIZE
 NUM_STEPS = NUM_EPOCHS * SAVE_PRED_EVERY
 POWER = 0.9
-RANDOM_SEED = 1234
-RESTORE_FROM = './checkpoints/deeplab_resnet_10k/model.ckpt'
+RESTORE_FROM = './checkpoints/deeplab_resnet_10k/'
 SAVE_NUM_IMAGES = 1
 SNAPSHOT_DIR = './logs/deeplab_resnet_10k/'
 WEIGHT_DECAY = 0.0005
 SHUFFLE = True
 RANDOM_SCALE = True
 RANDOM_MIRROR = True
-
-
-def get_arguments():
-    """Parse all the arguments provided from the CLI.
-    
-    Returns:
-      A list of parsed arguments.
-    """
-    parser = argparse.ArgumentParser(description="DeepLab-ResNet Network")
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE,
-                        help="Number of images sent to the network in one step.")
-    parser.add_argument("--image-dir", type=str, default=IMAGE_DIR,
-                        help="Path to the directory containing the PASCAL VOC dataset.")
-    parser.add_argument("--label-dir", type=str, default=LABEL_DIR,
-                        help="Path to the file listing the images in the dataset.")
-    parser.add_argument("--grad-update-every", type=int, default=GRAD_UPDATE_EVERY,
-                        help="Number of steps after which gradient update is applied.")
-    parser.add_argument("--ignore-label", type=int, default=IGNORE_LABEL,
-                        help="The index of the label to ignore during the training.")
-    parser.add_argument("--input-size", type=str, default=INPUT_SIZE,
-                        help="Comma-separated string with height and width of images.")
-    parser.add_argument("--is-training", action="store_true",
-                        help="Whether to update the running means and variances during the training.")
-    parser.add_argument("--learning-rate", type=float, default=LEARNING_RATE,
-                        help="Base learning rate for training with polynomial decay.")
-    parser.add_argument("--momentum", type=float, default=MOMENTUM,
-                        help="Momentum component of the optimiser.")
-    parser.add_argument("--not-restore-last", action="store_true",
-                        help="Whether to not restore last (FC) layers.")
-    parser.add_argument("--num-classes", type=int, default=NUM_CLASSES,
-                        help="Number of classes to predict (including background).")
-    parser.add_argument("--num-steps", type=int, default=NUM_STEPS,
-                        help="Number of training steps.")
-    parser.add_argument("--power", type=float, default=POWER,
-                        help="Decay parameter to compute the learning rate.")
-    parser.add_argument("--random-mirror", action="store_true",
-                        help="Whether to randomly mirror the inputs during the training.")
-    parser.add_argument("--random-scale", action="store_true",
-                        help="Whether to randomly scale the inputs during the training.")
-    parser.add_argument("--random-seed", type=int, default=RANDOM_SEED,
-                        help="Random seed to have reproducible results.")
-    parser.add_argument("--restore-from", type=str, default=RESTORE_FROM,
-                        help="Where restore model parameters from.")
-    parser.add_argument("--save-num-images", type=int, default=SAVE_NUM_IMAGES,
-                        help="How many images to save.")
-    parser.add_argument("--save-pred-every", type=int, default=SAVE_PRED_EVERY,
-                        help="Save summaries and checkpoint every often.")
-    parser.add_argument("--snapshot-dir", type=str, default=SNAPSHOT_DIR,
-                        help="Where to save snapshots of the model.")
-    parser.add_argument("--weight-decay", type=float, default=WEIGHT_DECAY,
-                        help="Regularisation parameter for L2-loss.")
-    return parser.parse_args()
+IS_TRAINING = True
+NOT_RESTORE_LAST = False
 
 
 def main():
     """Create the model and start the training."""
-    args = get_arguments()
     
     h, w = INPUT_SIZE
-    input_size = (h, w)
-    
-    tf.set_random_seed(args.random_seed)
-    
+
+    random_seed = random.randint(1000, 9999)
+    tf.set_random_seed(random_seed)
+
     # Create queue coordinator.
     coord = tf.train.Coordinator()
     
     # Load reader.
     with tf.name_scope("create_inputs"):
         reader = ImageReader(
-            args.image_dir,
-            args.label_dir,
+            IMAGE_DIR,
+            LABEL_DIR,
             INPUT_SIZE,
             RANDOM_SCALE,
             RANDOM_MIRROR,
-            args.ignore_label,
+            IGNORE_LABEL,
             IMG_MEAN,
             coord,
             SHUFFLE)
-        image_batch, label_batch = reader.dequeue(args.batch_size)
+        image_batch, label_batch = reader.dequeue(BATCH_SIZE)
         image_batch075 = tf.image.resize_images(image_batch, [int(h * 0.75), int(w * 0.75)])
         image_batch05 = tf.image.resize_images(image_batch, [int(h * 0.5), int(w * 0.5)])
     
     # Create network.
     with tf.variable_scope('', reuse=False):
-        net = DeepLabResNetModel({'data': image_batch}, is_training=args.is_training, num_classes=args.num_classes)
+        net = DeepLabResNetModel({'data': image_batch}, is_training=IS_TRAINING, num_classes=NUM_CLASSES)
     with tf.variable_scope('', reuse=True):
-        net075 = DeepLabResNetModel({'data': image_batch075}, is_training=args.is_training, num_classes=args.num_classes)
+        net075 = DeepLabResNetModel({'data': image_batch075}, is_training=IS_TRAINING, num_classes=NUM_CLASSES)
     with tf.variable_scope('', reuse=True):
-        net05 = DeepLabResNetModel({'data': image_batch05}, is_training=args.is_training, num_classes=args.num_classes)
+        net05 = DeepLabResNetModel({'data': image_batch05}, is_training=IS_TRAINING, num_classes=NUM_CLASSES)
     # For a small batch size, it is better to keep 
     # the statistics of the BN layers (running means and variances)
     # frozen, and to not update the values provided by the pre-trained model. 
@@ -150,7 +96,7 @@ def main():
                                          tf.image.resize_images(raw_output05, tf.shape(raw_output100)[1:3,])]), axis=0)
     # Which variables to load. Running means and variances are not trainable,
     # thus all_variables() should be restored.
-    restore_var = [v for v in tf.global_variables() if 'fc' not in v.name or not args.not_restore_last]
+    restore_var = [v for v in tf.global_variables() if 'fc' not in v.name or not NOT_RESTORE_LAST]
     all_trainable = [v for v in tf.trainable_variables() if 'beta' not in v.name and 'gamma' not in v.name]
     fc_trainable = [v for v in all_trainable if 'fc' in v.name]
     conv_trainable = [v for v in all_trainable if 'fc' not in v.name] # lr * 1.0
@@ -160,22 +106,22 @@ def main():
     assert(len(fc_trainable) == len(fc_w_trainable) + len(fc_b_trainable))
 
     # Predictions: ignoring all predictions with labels greater or equal than n_classes
-    raw_prediction = tf.reshape(raw_output, [-1, args.num_classes])
-    raw_prediction100 = tf.reshape(raw_output100, [-1, args.num_classes])
-    raw_prediction075 = tf.reshape(raw_output075, [-1, args.num_classes])
-    raw_prediction05 = tf.reshape(raw_output05, [-1, args.num_classes])
+    raw_prediction = tf.reshape(raw_output, [-1, NUM_CLASSES])
+    raw_prediction100 = tf.reshape(raw_output100, [-1, NUM_CLASSES])
+    raw_prediction075 = tf.reshape(raw_output075, [-1, NUM_CLASSES])
+    raw_prediction05 = tf.reshape(raw_output05, [-1, NUM_CLASSES])
     
-    label_proc = prepare_label(label_batch, tf.stack(raw_output.get_shape()[1:3]), num_classes=args.num_classes, one_hot=False) # [batch_size, h, w]
-    label_proc075 = prepare_label(label_batch, tf.stack(raw_output075.get_shape()[1:3]), num_classes=args.num_classes, one_hot=False)
-    label_proc05 = prepare_label(label_batch, tf.stack(raw_output05.get_shape()[1:3]), num_classes=args.num_classes, one_hot=False)
+    label_proc = prepare_label(label_batch, tf.stack(raw_output.get_shape()[1:3]), num_classes=NUM_CLASSES, one_hot=False) # [batch_size, h, w]
+    label_proc075 = prepare_label(label_batch, tf.stack(raw_output075.get_shape()[1:3]), num_classes=NUM_CLASSES, one_hot=False)
+    label_proc05 = prepare_label(label_batch, tf.stack(raw_output05.get_shape()[1:3]), num_classes=NUM_CLASSES, one_hot=False)
     
     raw_gt = tf.reshape(label_proc, [-1,])
     raw_gt075 = tf.reshape(label_proc075, [-1,])
     raw_gt05 = tf.reshape(label_proc05, [-1,])
     
-    indices = tf.squeeze(tf.where(tf.less_equal(raw_gt, args.num_classes - 1)), 1)
-    indices075 = tf.squeeze(tf.where(tf.less_equal(raw_gt075, args.num_classes - 1)), 1)
-    indices05 = tf.squeeze(tf.where(tf.less_equal(raw_gt05, args.num_classes - 1)), 1)
+    indices = tf.squeeze(tf.where(tf.less_equal(raw_gt, NUM_CLASSES - 1)), 1)
+    indices075 = tf.squeeze(tf.where(tf.less_equal(raw_gt075, NUM_CLASSES - 1)), 1)
+    indices05 = tf.squeeze(tf.where(tf.less_equal(raw_gt05, NUM_CLASSES - 1)), 1)
     
     gt = tf.cast(tf.gather(raw_gt, indices), tf.int32)
     gt075 = tf.cast(tf.gather(raw_gt075, indices075), tf.int32)
@@ -191,7 +137,7 @@ def main():
     loss100 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction100, labels=gt)
     loss075 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction075, labels=gt075)
     loss05 = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction05, labels=gt05)
-    l2_losses = [args.weight_decay * tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'weights' in v.name]
+    l2_losses = [WEIGHT_DECAY * tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'weights' in v.name]
     reduced_loss = tf.reduce_mean(loss) + tf.reduce_mean(loss100) + tf.reduce_mean(loss075) + tf.reduce_mean(loss05) + tf.add_n(l2_losses)
     
     # Processed predictions: for visualisation.
@@ -200,24 +146,24 @@ def main():
     pred = tf.expand_dims(raw_output_up, dim=3)
     
     # Image summary.
-    images_summary = tf.py_func(inv_preprocess, [image_batch, args.save_num_images, IMG_MEAN], tf.uint8)
-    labels_summary = tf.py_func(decode_labels, [label_batch, args.save_num_images, args.num_classes], tf.uint8)
-    preds_summary = tf.py_func(decode_labels, [pred, args.save_num_images, args.num_classes], tf.uint8)
+    images_summary = tf.py_func(inv_preprocess, [image_batch, SAVE_NUM_IMAGES, IMG_MEAN], tf.uint8)
+    labels_summary = tf.py_func(decode_labels, [label_batch, SAVE_NUM_IMAGES, NUM_CLASSES], tf.uint8)
+    preds_summary = tf.py_func(decode_labels, [pred, SAVE_NUM_IMAGES, NUM_CLASSES], tf.uint8)
     
     total_summary = tf.summary.image('images', 
                                      tf.concat(axis=2, values=[images_summary, labels_summary, preds_summary]), 
-                                     max_outputs=args.save_num_images) # Concatenate row-wise.
-    summary_writer = tf.summary.FileWriter(args.snapshot_dir,
+                                     max_outputs=SAVE_NUM_IMAGES) # Concatenate row-wise.
+    summary_writer = tf.summary.FileWriter(SNAPSHOT_DIR,
                                            graph=tf.get_default_graph())
    
     # Define loss and optimisation parameters.
-    base_lr = tf.constant(args.learning_rate)
+    base_lr = tf.constant(LEARNING_RATE)
     step_ph = tf.placeholder(dtype=tf.float32, shape=())
-    learning_rate = tf.scalar_mul(base_lr, tf.pow((1 - step_ph / args.num_steps), args.power))
+    learning_rate = tf.scalar_mul(base_lr, tf.pow((1 - step_ph / NUM_STEPS), POWER))
     
-    opt_conv = tf.train.MomentumOptimizer(learning_rate, args.momentum)
-    opt_fc_w = tf.train.MomentumOptimizer(learning_rate * 10.0, args.momentum)
-    opt_fc_b = tf.train.MomentumOptimizer(learning_rate * 20.0, args.momentum)
+    opt_conv = tf.train.MomentumOptimizer(learning_rate, MOMENTUM)
+    opt_fc_w = tf.train.MomentumOptimizer(learning_rate * 10.0, MOMENTUM)
+    opt_fc_b = tf.train.MomentumOptimizer(learning_rate * 20.0, MOMENTUM)
 
     # Define a variable to accumulate gradients.
     accum_grads = [tf.Variable(tf.zeros_like(v.initialized_value()),
@@ -230,7 +176,7 @@ def main():
     grads = tf.gradients(reduced_loss, conv_trainable + fc_w_trainable + fc_b_trainable)
    
     # Accumulate and normalise the gradients.
-    accum_grads_op = [accum_grads[i].assign_add(grad / args.grad_update_every) for i, grad in enumerate(grads)]
+    accum_grads_op = [accum_grads[i].assign_add(grad / GRAD_UPDATE_EVERY) for i, grad in enumerate(grads)]
 
     grads_conv = accum_grads[:len(conv_trainable)]
     grads_fc_w = accum_grads[len(conv_trainable) : (len(conv_trainable) + len(fc_w_trainable))]
@@ -255,15 +201,18 @@ def main():
     saver = tf.train.Saver(var_list=tf.global_variables(), max_to_keep=1)
     
     # Load variables if the checkpoint is provided.
-    if args.restore_from is not None:
+    if RESTORE_FROM is not None:
         loader = tf.train.Saver(var_list=restore_var)
-        load(loader, sess, args.restore_from)
+        if load(loader, sess, RESTORE_FROM):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
     
     # Start queue threads.
     threads = tf.train.start_queue_runners(coord=coord, sess=sess)
 
     # Iterate over training steps.
-    for step in range(args.num_steps):
+    for step in range(NUM_STEPS):
         start_time = time.time()
         feed_dict = {step_ph: step}
         loss_value = 0
@@ -272,18 +221,18 @@ def main():
         sess.run(zero_op, feed_dict=feed_dict)
        
         # Accumulate gradients.
-        for i in range(args.grad_update_every):
+        for i in range(GRAD_UPDATE_EVERY):
             _, l_val = sess.run([accum_grads_op, reduced_loss], feed_dict=feed_dict)
             loss_value += l_val
 
         # Normalise the loss.
-        loss_value /= args.grad_update_every
+        loss_value /= GRAD_UPDATE_EVERY
 
         # Apply gradients.
-        if step % args.save_pred_every == 0 and step > 0:
+        if step % SAVE_PRED_EVERY == 0 and step > 0:
             images, labels, summary, _ = sess.run([image_batch, label_batch, total_summary, train_op], feed_dict=feed_dict)
             summary_writer.add_summary(summary, step)
-            save(saver, sess, args.snapshot_dir, step)
+            save(saver, sess, SNAPSHOT_DIR, step)
         else:
             sess.run(train_op, feed_dict=feed_dict)
 

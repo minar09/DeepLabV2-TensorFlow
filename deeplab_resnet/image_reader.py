@@ -54,7 +54,7 @@ def random_crop_and_pad_image_and_labels(image, label, crop_h, crop_w, ignore_la
     """
 
     label = tf.cast(label, dtype=tf.float32)
-    label = label - ignore_label # Needs to be subtracted and later added due to 0 padding.
+    label = label - ignore_label  # Needs to be subtracted and later added due to 0 padding.
     combined = tf.concat(axis=2, values=[image, label]) 
     image_shape = tf.shape(image)
     combined_pad = tf.image.pad_to_bounding_box(combined, 0, 0, tf.maximum(crop_h, image_shape[0]), tf.maximum(crop_w, image_shape[1]))
@@ -103,7 +103,7 @@ def read_labeled_image_list(image_dir, label_dir):
     return images, masks
 
 
-def read_images_from_disk(input_queue, input_size, random_scale, random_mirror, ignore_label, img_mean): # optional pre-processing arguments
+def read_images_from_disk(input_queue, input_size, random_scale, random_mirror, ignore_label, img_mean):  # optional pre-processing arguments
     """Read one image and its corresponding mask with optional pre-processing.
     
     Args:
