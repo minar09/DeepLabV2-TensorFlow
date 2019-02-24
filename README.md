@@ -46,8 +46,6 @@ python train_msc.py
 ```
 
 
-An additional script, `fine_tune.py`, demonstrates how to train only the last layers of the network.
-
 ## Evaluation
 
 The single-scale model shows <code>86.9%</code> mIoU on the Pascal VOC 2012 validation dataset (['SegmentationClassAug'](https://www.dropbox.com/s/oeu149j8qtbs1x0/SegmentationClassAug.zip?dl=0)). No post-processing step with CRF is applied.
