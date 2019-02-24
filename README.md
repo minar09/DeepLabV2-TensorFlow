@@ -1,53 +1,11 @@
 # DeepLab-ResNet-TensorFlow
 
-[![Build Status](https://travis-ci.org/DrSleep/tensorflow-deeplab-resnet.svg?branch=master)](https://travis-ci.org/DrSleep/tensorflow-deeplab-resnet)
+This is an (re-)implementation of [DeepLab-ResNet](http://liangchiehchen.com/projects/DeepLabv2_resnet.html) in TensorFlow for semantic image segmentation on any parsing dataset.
 
-This is an (re-)implementation of [DeepLab-ResNet](http://liangchiehchen.com/projects/DeepLabv2_resnet.html) in TensorFlow for semantic image segmentation on the [PASCAL VOC dataset](http://host.robots.ox.ac.uk/pascal/VOC/).
-
-## Frequently Asked Questions
-
-If you encounter some problems and would like to create an issue, please read this first. If the guide below does not cover your question, please use search to see if a similar issue has already been solved before. Finally, if you are unable to find an answer, please fill in the issue with details of your problem provided.
-
-#### Which `python` version should I use?
-
-All the experiments are been done using `python2.7`. `python3` will likely require some minor modifications.
-
-#### After training, I have multiple files that look like `model.ckpt-xxxx.index`, `model.ckpt-xxxx.dataxxxx` and `model.ckpt-xxxx.meta`. Which one of them should I use to restore the model for inference?
-
-Instead of providing a path to one of those files, you must provide just `model.ckpt-xxxx`. It will fetch other files.
-
-#### My model is not learning anything. What should I do?
-
-First, check that your images are being read correctly. The setup implies that segmentation masks are saved without a colour map, i.e., each pixel contains a class index, not an RGB value. 
-Second, tune your hyperparameters. As there are no general strategies that work for each case, the design of this procedure is up to you.
-
-#### I want to use my own dataset. What should I do?
-
-Please refer to this [topic](https://github.com/DrSleep/tensorflow-deeplab-resnet#using-your-dataset).
-
-## Updates
-
-**29 Jan, 2017**:
-* Fixed the implementation of the batch normalisation layer: it now supports both the training and inference steps. If the flag `--is-training` is provided, the running means and variances will be updated; otherwise, they will be kept intact. The `.ckpt` files have been updated accordingly - to download please refer to the new link provided below.
-* Image summaries during the training process can now be seen using TensorBoard.
-* Fixed the evaluation procedure: the 'void' label (<code>255</code>) is now correctly ignored. As a result, the performance score on the validation set has increased to <code>80.1%</code>.
-
-**11 Feb, 2017**:
-* The training script `train.py` has been re-written following the original optimisation setup: SGD with momentum, weight decay, learning rate with polynomial decay, different learning rates for different layers, ignoring the 'void' label (<code>255</code>).
-* The training script with multi-scale inputs `train_msc.py` has been added: the input is resized to <code>0.5</code> and <code>0.75</code> of the original resolution, and <code>4</code> losses are aggregated: loss on the original resolution, on the <code>0.75</code> resolution, on the <code>0.5</code> resolution, and loss on the all fused outputs.
-* Evaluation of a single-scale converted pre-trained model on the PASCAL VOC validation dataset (using ['SegmentationClassAug'](https://www.dropbox.com/s/oeu149j8qtbs1x0/SegmentationClassAug.zip?dl=0)) leads to <code>86.9%</code> mIoU (as trainval was likely to be used for final training). This is confirmed by [the official PASCAL VOC server](http://host.robots.ox.ac.uk/anonymous/FIQPRH.html). The score on the test dataset is [<code>75.8%</code>](http://host.robots.ox.ac.uk/anonymous/EPBIGU.html).
-
-**22 Feb, 2017**:
-* The training script with multi-scale inputs `train_msc.py` now supports gradients accumulation: the relevant parameter `--grad-update-every` effectively mimics the behaviour of `iter_size` of Caffe. This allows to use batches of bigger sizes with less GPU memory being consumed. (Thanks to @arslan-chaudhry for this contribution!)
-* The random mirror and random crop options have been added. (Again big thanks to @arslan-chaudhry !)
-
-**23 Apr, 2017**:
-* TensorFlow 1.1.0 is now supported.
-* Three new flags `--num-classes`, `--ignore-label` and `--not-restore-last` are added to ease the usability of the scripts on new datasets. Check out [these instructions](https://github.com/DrSleep/tensorflow-deeplab-resnet#using-your-dataset) on how to set up the training process on your dataset.
 
 ## Model Description
 
-The DeepLab-ResNet is built on a fully convolutional variant of [ResNet-101](https://github.com/KaimingHe/deep-residual-networks) with [atrous (dilated) convolutions](https://github.com/fyu/dilation), atrous spatial pyramid pooling, and multi-scale inputs (not implemented here).
+The DeepLab-ResNet is built on a fully convolutional variant of [ResNet-101](https://github.com/KaimingHe/deep-residual-networks) with [atrous (dilated) convolutions](https://github.com/fyu/dilation), atrous spatial pyramid pooling, and multi-scale inputs.
 
 The model is trained on a mini-batch of images and corresponding ground truth masks with the softmax classifier at the top. During training, the masks are downsampled to match the size of the output from the network; during inference, to acquire the output of the same size as the input, bilinear upsampling is applied. The final segmentation mask is computed using argmax over the logits.
 Optionally, a fully-connected probabilistic graphical model, namely, CRF, can be applied to refine the final predictions.
@@ -79,40 +37,16 @@ or for a local installation
 pip install --user -r requirements.txt
 ```
 
-## Caffe to TensorFlow conversion
-
-To imitate the structure of the model, we have used `.caffemodel` files provided by the [authors](http://liangchiehchen.com/projects/DeepLabv2_resnet.html). The conversion has been performed using [Caffe to TensorFlow](https://github.com/ethereon/caffe-tensorflow) with an additional configuration for atrous convolution and batch normalisation (since the batch normalisation provided by Caffe-tensorflow only supports inference). 
-There is no need to perform the conversion yourself as you can download the already converted models - `deeplab_resnet.ckpt` (pre-trained) and `deeplab_resnet_init.ckpt` (the last layers are randomly initialised) - [here](https://drive.google.com/open?id=0B_rootXHuswsZ0E4Mjh1ZU5xZVU).
-
-Nevertheless, it is easy to perform the conversion manually, given that the appropriate `.caffemodel` file has been downloaded, and [Caffe to TensorFlow](https://github.com/ethereon/caffe-tensorflow) dependencies have been installed. The Caffe model definition is provided in `misc/deploy.prototxt`. 
-To extract weights from `.caffemodel`, run the following:
-```bash
-python convert.py /path/to/deploy/prototxt --caffemodel /path/to/caffemodel --data-output-path /where/to/save/numpy/weights
-```
-As a result of running the command above, the model weights will be stored in `/where/to/save/numpy/weights`. To convert them to the native TensorFlow format (`.ckpt`), simply execute:
-```bash
-python npy2ckpt.py /where/to/save/numpy/weights --save-dir=/where/to/save/ckpt/weights
-```
-
 ## Dataset and Training
 
-To train the network, one can use the augmented PASCAL VOC 2012 dataset with <code>10582</code> images for training and <code>1449</code> images for validation.
 
 The training script allows to monitor the progress in the optimisation process using TensorBoard's image summary. Besides that, one can also exploit random scaling and mirroring of the inputs during training as a means for data augmentation. For example, to train the model from scratch with random scale and mirroring turned on, simply run:
 ```bash
-python train.py --random-mirror --random-scale
+python train_msc.py
 ```
 
-<img src="images/summary.png"></img>
 
-To see the documentation on each of the training settings run the following:
-
-```bash
-python train.py --help
-```
-
-An additional script, `fine_tune.py`, demonstrates how to train only the last layers of the network. The script `train_msc.py` with multi-scale inputs fully resembles the training setup of the original model. 
-
+An additional script, `fine_tune.py`, demonstrates how to train only the last layers of the network.
 
 ## Evaluation
 
@@ -120,7 +54,7 @@ The single-scale model shows <code>86.9%</code> mIoU on the Pascal VOC 2012 vali
 
 The following command provides the description of each of the evaluation settings:
 ```bash
-python evaluate.py --help
+python evaluate_msc.py --help
 ```
 
 ## Inference
@@ -145,11 +79,3 @@ In order to apply the same scripts using your own dataset, you would need to fol
 5. Change the flags `num-classes` and `ignore-label` accordingly in the script that you will be using (e.g., `python train.py --ignore-label 255 --num-classes 21`).
 6. If restoring weights from the `PASCAL` models for your dataset with a different number of classes, you will also need to pass the `--not-restore-last` flag, which will prevent the last layers of size <code>21</code> from being restored.
 
-
-## Missing features
-
-The post-processing step with CRF is currently being implemented [here](https://github.com/DrSleep/tensorflow-deeplab-resnet/tree/crf).
-
-    
-## Other implementations
-* [DeepLab-LargeFOV in TensorFlow](https://github.com/DrSleep/tensorflow-deeplab-lfov)
