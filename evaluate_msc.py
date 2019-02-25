@@ -9,8 +9,14 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import cv2
+import os
 from PIL import Image
 from deeplab_resnet import DeepLabResNetModel, ImageReader, load, decode_labels
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+# Hide the warning messages about CPU/GPU
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 IMG_MEAN = np.array((104.00698793, 116.66876762,
                      122.67891434), dtype=np.float32)
@@ -20,7 +26,7 @@ LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/validation/'
 IGNORE_LABEL = 255
 NUM_CLASSES = 18
 NUM_STEPS = 1000  # Number of images in the validation set.
-RESTORE_FROM = './checkpoints/deeplab_resnet_10k/'
+RESTORE_FROM = './logs/deeplab_resnet_10k/'
 OUTPUT_DIR = './output/deeplab_resnet_10k/'
 
 
@@ -80,10 +86,10 @@ def main():
     raw_output = tf.image.resize_bilinear(
         raw_output, tf.shape(image_batch)[1:3, ])
     raw_output = tf.argmax(raw_output, dimension=3)
-    prediction = tf.expand_dims(raw_output, dim=3)  # Create 4-d tensor.
+    prediction_all = tf.expand_dims(raw_output, dim=3)  # Create 4-d tensor.
 
     # mIoU
-    prediction = tf.reshape(prediction, [-1, ])
+    prediction = tf.reshape(prediction_all, [-1, ])
     gt = tf.reshape(label_batch, [-1, ])
     # Ignoring all labels greater than or equal to n_classes.
     weights = tf.cast(tf.less_equal(gt, NUM_CLASSES - 1), tf.int32)
@@ -102,15 +108,21 @@ def main():
     # Load weights.
     loader = tf.train.Saver(var_list=restore_var)
     if RESTORE_FROM is not None:
-        load(loader, sess, RESTORE_FROM)
+        if load(loader, sess, RESTORE_FROM):
+            print(" [*] Load SUCCESS")
+        else:
+            print(" [!] Load failed...")
 
     # Start queue threads.
     threads = tf.train.start_queue_runners(coord=coord, sess=sess)
 
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+
     # Iterate over training steps.
     for step in range(NUM_STEPS):
 
-        predictions, _ = sess.run([prediction, update_op])
+        predictions, _ = sess.run([prediction_all, update_op])
         if step % 100 == 0:
             print('step {:d}'.format(step))
 

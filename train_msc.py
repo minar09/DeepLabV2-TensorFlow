@@ -22,23 +22,35 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 IMG_MEAN = np.array((104.00698793, 116.66876762,
                      122.67891434), dtype=np.float32)
 
-BATCH_SIZE = 4
+# DATA_SET = "10k"
+DATA_SET = "CFPD"
+
 IMAGE_DIR = 'D:/Datasets/Dressup10k/images/training/'
 LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/training/'
+NUM_CLASSES = 18
+NUM_IMAGES = 9003
+SNAPSHOT_DIR = './logs/deeplab_resnet_10k/'
+BATCH_SIZE = 4
+
+if DATA_SET == "CFPD":
+    IMAGE_DIR = 'D:/Datasets/CFPD/trainimages/'
+    LABEL_DIR = 'D:/Datasets/CFPD/trainimages/'
+    NUM_CLASSES = 23
+    NUM_IMAGES = 1674
+    SNAPSHOT_DIR = './logs/deeplab_resnet_CFPD/'
+    BATCH_SIZE = 2
+
+RESTORE_FROM = SNAPSHOT_DIR
 GRAD_UPDATE_EVERY = 10
 IGNORE_LABEL = 255
 INPUT_SIZE = [321, 321]
 LEARNING_RATE = 1e-4
 MOMENTUM = 0.9
-NUM_CLASSES = 18
-NUM_IMAGES = 9003
 NUM_EPOCHS = 30
 SAVE_PRED_EVERY = NUM_IMAGES // BATCH_SIZE
 NUM_STEPS = NUM_EPOCHS * SAVE_PRED_EVERY
 POWER = 0.9
-RESTORE_FROM = './checkpoints/deeplab_resnet_10k/'
 SAVE_NUM_IMAGES = 1
-SNAPSHOT_DIR = './logs/deeplab_resnet_10k/'
 WEIGHT_DECAY = 0.0005
 SHUFFLE = True
 RANDOM_SCALE = True
@@ -69,7 +81,8 @@ def main():
             IGNORE_LABEL,
             IMG_MEAN,
             coord,
-            SHUFFLE)
+            SHUFFLE,
+            DATA_SET)
         image_batch, label_batch = reader.dequeue(BATCH_SIZE)
         image_batch075 = tf.image.resize_images(
             image_batch, [int(h * 0.75), int(w * 0.75)])
@@ -195,24 +208,23 @@ def main():
     opt_fc_b = tf.train.MomentumOptimizer(learning_rate * 20.0, MOMENTUM)
 
     # Define a variable to accumulate gradients.
-    accum_grads = [tf.Variable(tf.zeros_like(v.initialized_value()),
-                               trainable=False) for v in conv_trainable + fc_w_trainable + fc_b_trainable]
+    accumulate_grads = [tf.Variable(tf.zeros_like(v.initialized_value()), trainable=False) for v in conv_trainable + fc_w_trainable + fc_b_trainable]
 
     # Define an operation to clear the accumulated gradients for next batch.
-    zero_op = [v.assign(tf.zeros_like(v)) for v in accum_grads]
+    zero_op = [v.assign(tf.zeros_like(v)) for v in accumulate_grads]
 
     # Compute gradients.
     grads = tf.gradients(reduced_loss, conv_trainable +
                          fc_w_trainable + fc_b_trainable)
 
     # Accumulate and normalise the gradients.
-    accum_grads_op = [accum_grads[i].assign_add(
+    accum_grads_op = [accumulate_grads[i].assign_add(
         grad / GRAD_UPDATE_EVERY) for i, grad in enumerate(grads)]
 
-    grads_conv = accum_grads[:len(conv_trainable)]
-    grads_fc_w = accum_grads[len(conv_trainable): (
+    grads_conv = accumulate_grads[:len(conv_trainable)]
+    grads_fc_w = accumulate_grads[len(conv_trainable): (
         len(conv_trainable) + len(fc_w_trainable))]
-    grads_fc_b = accum_grads[(len(conv_trainable) + len(fc_w_trainable)):]
+    grads_fc_b = accumulate_grads[(len(conv_trainable) + len(fc_w_trainable)):]
 
     # Apply the gradients.
     train_op_conv = opt_conv.apply_gradients(zip(grads_conv, conv_trainable))

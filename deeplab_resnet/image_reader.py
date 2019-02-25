@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
 
 def image_scaling(img, label):
@@ -78,7 +79,7 @@ def random_crop_and_pad_image_and_labels(image, label, crop_h, crop_w, ignore_la
     return img_crop, label_crop
 
 
-def read_labeled_image_list(image_dir, label_dir):
+def read_labeled_image_list(image_dir, label_dir, data_set="10k"):
     """Reads txt file containing paths to images and ground truth masks.
 
     Args:
@@ -92,9 +93,13 @@ def read_labeled_image_list(image_dir, label_dir):
     images = []
     masks = []
 
-    for line in file_names:
+    for line in tqdm(file_names):
         image = None
         mask = None
+
+        if data_set == "CFPD":
+            if ".png" in line:
+                continue
 
         try:
             image = image_dir + line
@@ -163,7 +168,7 @@ class ImageReader(object):
     '''
 
     def __init__(self, image_dir, label_dir, input_size,
-                 random_scale, random_mirror, ignore_label, img_mean, coord, shuffle=False):
+                 random_scale, random_mirror, ignore_label, img_mean, coord, shuffle=False, data_set="10k"):
         '''Initialise an ImageReader.
 
         Args:
@@ -180,9 +185,10 @@ class ImageReader(object):
         self.label_dir = label_dir
         self.input_size = input_size
         self.coord = coord
+        self.data_set = data_set
 
         self.image_list, self.label_list = read_labeled_image_list(
-            self.image_dir, self.label_dir)
+            self.image_dir, self.label_dir, self.data_set)
         self.images = tf.convert_to_tensor(self.image_list, dtype=tf.string)
         self.labels = tf.convert_to_tensor(self.label_list, dtype=tf.string)
         self.queue = tf.train.slice_input_producer([self.images, self.labels],

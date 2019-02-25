@@ -26,7 +26,7 @@ label_colours = [(0, 0, 0),  # 0=Background
                  ]
 
 
-def decode_labels(mask, num_images=1, num_classes=21):
+def decode_labels(mask, num_images=1, num_classes=18):
     """Decode batch of segmentation masks.
 
     Args:
@@ -52,7 +52,7 @@ def decode_labels(mask, num_images=1, num_classes=21):
     return outputs
 
 
-def prepare_label(input_batch, new_size, num_classes, one_hot=True):
+def prepare_label(input_batch, new_size, num_classes=18, one_hot=True):
     """Resize masks and perform one-hot encoding.
 
     Args:
@@ -126,7 +126,18 @@ def load(saver, sess, ckpt_path):
           sess: TensorFlow session.
           ckpt_path: path to checkpoint file with parameters.
         '''
-        saver.restore(sess, ckpt_path)
-        print("Restored model parameters from {}".format(ckpt_path))
+        ckpt = tf.train.get_checkpoint_state(ckpt_path)
+        if ckpt and ckpt.model_checkpoint_path:
+            # saver.restore(sess, ckpt_path)
+            # ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            # saver.restore(sess, os.path.join(ckpt_path, ckpt_name))
+            saver.restore(sess, ckpt.model_checkpoint_path)
+            # print("Restored model parameters from {}".format(ckpt_name))
+            # print("Restored model parameters")
+            print("Restored model parameters from {}".format(ckpt_path))
+            return True
+        else:
+            return False
     except Exception as err:
         print(err)
+        return False
