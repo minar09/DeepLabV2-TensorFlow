@@ -32,7 +32,7 @@ def layer(op):
 
 class Network(object):
 
-    def __init__(self, inputs, trainable=True, is_training=False, num_classes=21):
+    def __init__(self, inputs, trainable=True, is_training=False, n_classes=20):
         # The input nodes for this network
         self.inputs = inputs
         # The current list of terminal nodes
@@ -45,9 +45,9 @@ class Network(object):
         self.use_dropout = tf.placeholder_with_default(tf.constant(1.0),
                                                        shape=[],
                                                        name='use_dropout')
-        self.setup(is_training, num_classes)
+        self.setup(is_training, n_classes)
 
-    def setup(self, is_training):
+    def setup(self, is_training, n_classes):
         '''Construct the network. '''
         raise NotImplementedError('Must be implemented by the subclass.')
 
@@ -118,7 +118,7 @@ class Network(object):
         # Verify that the padding is acceptable
         self.validate_padding(padding)
         # Get the number of channels in the input
-        c_i = input.get_shape().as_list()[-1]
+        c_i = input.get_shape()[-1]
         # Verify that the grouping parameter is valid
         assert c_i % group == 0
         assert c_o % group == 0
@@ -128,7 +128,7 @@ class Network(object):
             i, k, [1, s_h, s_w, 1], padding=padding)
         with tf.variable_scope(name) as scope:
             kernel = self.make_var(
-                'weights', shape=[k_h, k_w, c_i / group, c_o])
+                'weights', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 output = convolve(input, kernel)
@@ -164,7 +164,7 @@ class Network(object):
         # Verify that the padding is acceptable
         self.validate_padding(padding)
         # Get the number of channels in the input
-        c_i = input.get_shape().as_list()[-1]
+        c_i = input.get_shape()[-1]
         # Verify that the grouping parameter is valid
         assert c_i % group == 0
         assert c_o % group == 0
@@ -174,7 +174,7 @@ class Network(object):
             i, k, dilation, padding=padding)
         with tf.variable_scope(name) as scope:
             kernel = self.make_var(
-                'weights', shape=[k_h, k_w, c_i / group, c_o])
+                'weights', shape=[k_h, k_w, int(c_i) / group, c_o])
             if group == 1:
                 # This is the common-case. Convolve the input without any further complications.
                 output = convolve(input, kernel)
@@ -237,7 +237,7 @@ class Network(object):
     @layer
     def fc(self, input, num_out, name, relu=True):
         with tf.variable_scope(name) as scope:
-            input_shape = input.get_shape().as_list()
+            input_shape = input.get_shape()
             if input_shape.ndims == 4:
                 # The input is spatial. Vectorize it first.
                 dim = 1
@@ -254,7 +254,7 @@ class Network(object):
 
     @layer
     def softmax(self, input, name):
-        input_shape = map(lambda v: v.value, input.get_shape().as_list())
+        input_shape = map(lambda v: v.value, input.get_shape())
         if len(input_shape) > 2:
             # For certain models (like NiN), the singleton spatial dimensions
             # need to be explicitly squeezed, since they're not broadcast-able
