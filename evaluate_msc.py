@@ -1,5 +1,4 @@
 from __future__ import print_function
-from LIP_model import *
 from utils import *
 import tensorflow as tf
 import os
@@ -11,17 +10,31 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Hide the warning messages about CPU/GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+# DATA_SET = "LIP"
+DATA_SET = "10k"
+# DATA_SET = "CFPD"
+
 N_CLASSES = 20
-INPUT_SIZE = (384, 384)
-DATA_DIRECTORY = 'D:/Datasets/LIP/validation'
-# DATA_DIRECTORY = './datasets/examples'
-DATA_LIST_PATH = 'D:/Datasets/LIP/list/val.txt'
-# DATA_LIST_PATH = './datasets/examples/list/val.txt'
+IMAGE_DIR = 'D:/Datasets/LIP/training/images/'
 NUM_STEPS = 10000  # Number of images in the validation set.
-RESTORE_FROM = './checkpoint/JPPNet-s2'
-# RESTORE_FROM = './checkpoint/JPPNet-s2-pretrained'
-OUTPUT_DIR = 'D:/Datasets/LIP/output/JPPNet-s2/parsing/val'
-# OUTPUT_DIR = 'D:/Datasets/LIP/output/JPPNet-s2-pretrained/parsing/val'
+RESTORE_FROM = './checkpoint/deeplabv2_LIP'
+OUTPUT_DIR = './output/deeplabv2_LIP/'
+
+if DATA_SET == "10k":
+    N_CLASSES = 18
+    IMAGE_DIR = 'D:/Datasets/Dressup10k/images/validation/'
+    NUM_STEPS = 1000  # Number of images in the validation set.
+    RESTORE_FROM = './checkpoint/deeplabv2_10k'
+    OUTPUT_DIR = './output/deeplabv2_10k/'
+
+if DATA_SET == "CFPD":
+    N_CLASSES = 23
+    IMAGE_DIR = 'D:/Datasets/CFPD/trainimges/'
+    NUM_STEPS = 536  # Number of images in the validation set.
+    RESTORE_FROM = './checkpoint/deeplabv2_CFPD'
+    OUTPUT_DIR = './output/deeplabv2_CFPD/'
+
+INPUT_SIZE = (384, 384)
 
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
@@ -35,8 +48,7 @@ def main():
     h, w = INPUT_SIZE
     # Load reader.
     with tf.name_scope("create_inputs"):
-        reader = ImageReader(DATA_DIRECTORY, DATA_LIST_PATH,
-                             None, False, False, coord)
+        reader = ImageReader(IMAGE_DIR, coord, DATA_SET)
         image = reader.image
         image_rev = tf.reverse(image, tf.stack([1]))
         image_list = reader.image_list

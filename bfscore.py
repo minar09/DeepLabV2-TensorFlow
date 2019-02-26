@@ -14,7 +14,7 @@ bDebug = False
 
 
 def init_path():
-    val_prediction_dir = './output/deeplab_resnet_10k/'
+    val_prediction_dir = './output/deeplabv2_10k/'
     val_gt_dir = 'D:/Datasets/Dressup10k/annotations/training/'
 
     val_gt_paths = []

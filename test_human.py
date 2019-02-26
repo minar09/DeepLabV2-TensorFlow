@@ -11,7 +11,7 @@ def main():
 
 
 def init_path():
-    val_prediction_dir = './output/deeplab_resnet_10k/'
+    val_prediction_dir = './output/deeplabv2_10k/'
     val_gt_dir = 'D:/Datasets/Dressup10k/annotations/training/'
 
     val_gt_paths = []
@@ -96,7 +96,7 @@ def show_result(hist):
     print('=' * 50)
 
     # Save confusion matrix
-    np.savetxt('./output/deeplab_resnet_10k_CM.csv', hist, fmt='%4i', delimiter=',')
+    np.savetxt('./output/deeplabv2_10k_CM.csv', hist, fmt='%4i', delimiter=',')
 
 
 if __name__ == '__main__':
