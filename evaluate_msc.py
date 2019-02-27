@@ -27,7 +27,7 @@ if DATA_SET == "10k":
     RESTORE_FROM = './checkpoint/deeplabv2_10k'
     OUTPUT_DIR = './output/deeplabv2_10k/'
 
-if DATA_SET == "CFPD":
+elif DATA_SET == "CFPD":
     N_CLASSES = 23
     IMAGE_DIR = 'D:/Datasets/CFPD/trainimges/'
     NUM_STEPS = 536  # Number of images in the validation set.
