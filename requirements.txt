@@ -1,3 +1,4 @@
+opencv-python
 tensorflow
 Cython>=0.19.2
 numpy>=1.7.1

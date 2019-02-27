@@ -32,7 +32,7 @@ if DATA_SET == "10k":
     SNAPSHOT_DIR = './checkpoint/deeplabv2_10k'
     LOG_DIR = './logs/deeplabv2_10k'
 
-if DATA_SET == "CFPD":
+elif DATA_SET == "CFPD":
     N_CLASSES = 23
     BATCH_SIZE = 2
     NUM_IMAGES = 1674

@@ -4,8 +4,8 @@ import tensorflow as tf
 import os
 import cv2
 from PIL import Image
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Hide the warning messages about CPU/GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -72,72 +72,46 @@ def main():
                                  is_training=False, n_classes=N_CLASSES)
 
     # parsing net
-    parsing_fea1_100 = net_100.layers['res5d_branch2b_parsing']
-    parsing_fea1_075 = net_075.layers['res5d_branch2b_parsing']
-    parsing_fea1_125 = net_125.layers['res5d_branch2b_parsing']
-
     parsing_out1_100 = net_100.layers['fc1_human']
     parsing_out1_075 = net_075.layers['fc1_human']
     parsing_out1_125 = net_125.layers['fc1_human']
-
-    # pose net
-    resnet_fea_100 = net_100.layers['res4b22_relu']
-    resnet_fea_075 = net_075.layers['res4b22_relu']
-    resnet_fea_125 = net_125.layers['res4b22_relu']
-
-    with tf.variable_scope('', reuse=False):
-        pose_out1_100, pose_fea1_100 = pose_net(resnet_fea_100, 'fc1_pose')
-        pose_out2_100, pose_fea2_100 = pose_refine(
-            pose_out1_100, parsing_out1_100, pose_fea1_100, name='fc2_pose')
-        parsing_out2_100, parsing_fea2_100 = parsing_refine(
-            parsing_out1_100, pose_out1_100, parsing_fea1_100, name='fc2_parsing')
-        parsing_out3_100, parsing_fea3_100 = parsing_refine(
-            parsing_out2_100, pose_out2_100, parsing_fea2_100, name='fc3_parsing')
-
-    with tf.variable_scope('', reuse=True):
-        pose_out1_075, pose_fea1_075 = pose_net(resnet_fea_075, 'fc1_pose')
-        pose_out2_075, pose_fea2_075 = pose_refine(
-            pose_out1_075, parsing_out1_075, pose_fea1_075, name='fc2_pose')
-        parsing_out2_075, parsing_fea2_075 = parsing_refine(
-            parsing_out1_075, pose_out1_075, parsing_fea1_075, name='fc2_parsing')
-        parsing_out3_075, parsing_fea3_075 = parsing_refine(
-            parsing_out2_075, pose_out2_075, parsing_fea2_075, name='fc3_parsing')
-
-    with tf.variable_scope('', reuse=True):
-        pose_out1_125, pose_fea1_125 = pose_net(resnet_fea_125, 'fc1_pose')
-        pose_out2_125, pose_fea2_125 = pose_refine(
-            pose_out1_125, parsing_out1_125, pose_fea1_125, name='fc2_pose')
-        parsing_out2_125, parsing_fea2_125 = parsing_refine(
-            parsing_out1_125, pose_out1_125, parsing_fea1_125, name='fc2_parsing')
-        parsing_out3_125, parsing_fea3_125 = parsing_refine(
-            parsing_out2_125, pose_out2_125, parsing_fea2_125, name='fc3_parsing')
 
     parsing_out1 = tf.reduce_mean(tf.stack([tf.image.resize_images(parsing_out1_100, tf.shape(image_batch_origin)[1:3, ]),
                                             tf.image.resize_images(
                                                 parsing_out1_075, tf.shape(image_batch_origin)[1:3, ]),
                                             tf.image.resize_images(parsing_out1_125, tf.shape(image_batch_origin)[1:3, ])]), axis=0)
-    parsing_out2 = tf.reduce_mean(tf.stack([tf.image.resize_images(parsing_out2_100, tf.shape(image_batch_origin)[1:3, ]),
-                                            tf.image.resize_images(
-                                                parsing_out2_075, tf.shape(image_batch_origin)[1:3, ]),
-                                            tf.image.resize_images(parsing_out2_125, tf.shape(image_batch_origin)[1:3, ])]), axis=0)
-    parsing_out3 = tf.reduce_mean(tf.stack([tf.image.resize_images(parsing_out3_100, tf.shape(image_batch_origin)[1:3, ]),
-                                            tf.image.resize_images(
-                                                parsing_out3_075, tf.shape(image_batch_origin)[1:3, ]),
-                                            tf.image.resize_images(parsing_out3_125, tf.shape(image_batch_origin)[1:3, ])]), axis=0)
 
     raw_output = tf.reduce_mean(
-        tf.stack([parsing_out1, parsing_out2, parsing_out3]), axis=0)
+        tf.stack([parsing_out1]), axis=0)
     head_output, tail_output = tf.unstack(raw_output, num=2, axis=0)
-    tail_list = tf.unstack(tail_output, num=20, axis=2)
-    tail_list_rev = [None] * 20
-    for xx in range(14):
-        tail_list_rev[xx] = tail_list[xx]
-    tail_list_rev[14] = tail_list[15]
-    tail_list_rev[15] = tail_list[14]
-    tail_list_rev[16] = tail_list[17]
-    tail_list_rev[17] = tail_list[16]
-    tail_list_rev[18] = tail_list[19]
-    tail_list_rev[19] = tail_list[18]
+    tail_list = tf.unstack(tail_output, num=N_CLASSES, axis=2)
+    tail_list_rev = [None] * N_CLASSES
+
+    if DATA_SET == "LIP":
+        for xx in range(14):
+            tail_list_rev[xx] = tail_list[xx]
+
+        tail_list_rev[14] = tail_list[15]
+        tail_list_rev[15] = tail_list[14]
+        tail_list_rev[16] = tail_list[17]
+        tail_list_rev[17] = tail_list[16]
+        tail_list_rev[18] = tail_list[19]
+        tail_list_rev[19] = tail_list[18]
+
+    elif DATA_SET == "10k":
+        for xx in range(9):
+            tail_list_rev[xx] = tail_list[xx]
+
+        tail_list_rev[9] = tail_list[10]
+        tail_list_rev[10] = tail_list[9]
+        tail_list_rev[11] = tail_list[11]
+        tail_list_rev[12] = tail_list[13]
+        tail_list_rev[13] = tail_list[12]
+        tail_list_rev[14] = tail_list[15]
+        tail_list_rev[15] = tail_list[14]
+        tail_list_rev[16] = tail_list[16]
+        tail_list_rev[17] = tail_list[17]
+
     tail_output_rev = tf.stack(tail_list_rev, axis=2)
     tail_output_rev = tf.reverse(tail_output_rev, tf.stack([1]))
 
@@ -145,7 +119,7 @@ def main():
         tf.stack([head_output, tail_output_rev]), axis=0)
     raw_output_all = tf.expand_dims(raw_output_all, dim=0)
     raw_output_all = tf.argmax(raw_output_all, dimension=3)
-    pred_all = tf.expand_dims(raw_output_all, dim=3)  # Create 4-d tensor.
+    prediction_all = tf.expand_dims(raw_output_all, dim=3)  # Create 4-d tensor.
 
     # Which variables to load.
     restore_var = tf.global_variables()
@@ -172,7 +146,7 @@ def main():
     # Iterate over training steps.
     for step in range(NUM_STEPS):
         try:
-            parsing_ = sess.run(pred_all)
+            parsing_ = sess.run(prediction_all)
             if step % 100 == 0:
                 print('step {:d}'.format(step))
                 print(image_list[step])
