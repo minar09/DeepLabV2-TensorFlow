@@ -5,7 +5,7 @@ import os
 import cv2
 from PIL import Image
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Hide the warning messages about CPU/GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'

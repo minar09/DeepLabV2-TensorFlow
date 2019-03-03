@@ -5,7 +5,11 @@ import random
 from utils import *
 import tensorflow as tf
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# Set gpus
+gpus = [0, 1, 2, 3]  # Here I set CUDA to only see one GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(i) for i in gpus])
+NUM_GPU = len(gpus)  # number of GPUs to use
 
 # Hide the warning messages about CPU/GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -16,7 +20,8 @@ DATA_SET = "10k"
 
 # parameters setting
 N_CLASSES = 20
-BATCH_SIZE = 2
+BATCH_SIZE = 8
+BATCH_ITERATION = BATCH_SIZE // NUM_GPU
 NUM_IMAGES = 30462
 IMAGE_DIR = 'D:/Datasets/LIP/training/images/'
 LABEL_DIR = 'D:/Datasets/LIP/training/labels/'
@@ -25,7 +30,6 @@ LOG_DIR = './logs/deeplabv2_LIP'
 
 if DATA_SET == "10k":
     N_CLASSES = 18
-    BATCH_SIZE = 2
     NUM_IMAGES = 9003
     IMAGE_DIR = 'D:/Datasets/Dressup10k/images/training/'
     LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/training/'
@@ -34,7 +38,6 @@ if DATA_SET == "10k":
 
 elif DATA_SET == "CFPD":
     N_CLASSES = 23
-    BATCH_SIZE = 2
     NUM_IMAGES = 1674
     IMAGE_DIR = 'D:/Datasets/CFPD/trainimages/'
     LABEL_DIR = 'D:/Datasets/CFPD/trainimages/'
@@ -81,103 +84,114 @@ def main():
         base_lr, tf.pow((1 - step_ph / NUM_STEPS), POWER))
     optimizer = tf.train.MomentumOptimizer(learning_rate, MOMENTUM)
 
-    with tf.device('/gpu:0'):
-        reuse1 = False
-        reuse2 = True
+    reduced_loss = None
 
-        next_image = image_batch
-        next_image075 = image_batch075
-        next_image050 = image_batch050
-        next_label = label_batch
+    for i in range(NUM_GPU):
+        with tf.device('/gpu:%d' % i):
+            with tf.name_scope('Tower_%d' % i) as scope:
 
-        # Create network.
-        with tf.variable_scope('', reuse=reuse1):
-            net_100 = DeepLabV2Model(
-                {'data': next_image}, is_training=False, n_classes=N_CLASSES)
-        with tf.variable_scope('', reuse=reuse2):
-            net_075 = DeepLabV2Model(
-                {'data': next_image075}, is_training=False, n_classes=N_CLASSES)
-        with tf.variable_scope('', reuse=reuse2):
-            net_050 = DeepLabV2Model(
-                {'data': next_image050}, is_training=False, n_classes=N_CLASSES)
+                if i == 0:
+                    reuse1 = False
+                    reuse2 = True
+                else:
+                    reuse1 = True
+                    reuse2 = True
 
-        # parsing net
-        parsing_out1_100 = net_100.layers['fc1_human']
-        parsing_out1_075 = net_075.layers['fc1_human']
-        parsing_out1_050 = net_050.layers['fc1_human']
+                next_image = image_batch[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_image075 = image_batch075[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_image050 = image_batch050[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_label = label_batch[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
 
-        # combine resize
-        parsing_out1 = tf.reduce_mean(tf.stack([parsing_out1_100,
-                                                tf.image.resize_images(parsing_out1_075,
-                                                                       tf.shape(parsing_out1_100)[1:3, ]),
-                                                tf.image.resize_images(parsing_out1_050,
-                                                                       tf.shape(parsing_out1_100)[1:3, ])]),
-                                      axis=0)
+                # Create network.
+                with tf.variable_scope('', reuse=reuse1):
+                    net_100 = DeepLabV2Model(
+                        {'data': next_image}, is_training=False, n_classes=N_CLASSES)
+                with tf.variable_scope('', reuse=reuse2):
+                    net_075 = DeepLabV2Model(
+                        {'data': next_image075}, is_training=False, n_classes=N_CLASSES)
+                with tf.variable_scope('', reuse=reuse2):
+                    net_050 = DeepLabV2Model(
+                        {'data': next_image050}, is_training=False, n_classes=N_CLASSES)
 
-        # Predictions: ignoring all predictions with labels greater or equal than n_classes
-        raw_prediction_p1 = tf.reshape(parsing_out1, [-1, N_CLASSES])
-        raw_prediction_p1_100 = tf.reshape(
-            parsing_out1_100, [-1, N_CLASSES])
-        raw_prediction_p1_075 = tf.reshape(
-            parsing_out1_075, [-1, N_CLASSES])
-        raw_prediction_p1_050 = tf.reshape(
-            parsing_out1_050, [-1, N_CLASSES])
+                # parsing net
+                parsing_out1_100 = net_100.layers['fc1_human']
+                parsing_out1_075 = net_075.layers['fc1_human']
+                parsing_out1_050 = net_050.layers['fc1_human']
 
-        label_proc = prepare_label(next_label, tf.stack(parsing_out1.get_shape()[1:3]),
-                                   one_hot=False, num_classes=N_CLASSES)  # [batch_size, h, w]
-        label_proc075 = prepare_label(next_label, tf.stack(
-            parsing_out1_075.get_shape()[1:3]), one_hot=False, num_classes=N_CLASSES)
-        label_proc050 = prepare_label(next_label, tf.stack(
-            parsing_out1_050.get_shape()[1:3]), one_hot=False, num_classes=N_CLASSES)
+                # combine resize
+                parsing_out1 = tf.reduce_mean(tf.stack([parsing_out1_100,
+                                                        tf.image.resize_images(parsing_out1_075,
+                                                                               tf.shape(parsing_out1_100)[1:3, ]),
+                                                        tf.image.resize_images(parsing_out1_050,
+                                                                               tf.shape(parsing_out1_100)[1:3, ])]),
+                                              axis=0)
 
-        raw_gt = tf.reshape(label_proc, [-1, ])
-        raw_gt075 = tf.reshape(label_proc075, [-1, ])
-        raw_gt050 = tf.reshape(label_proc050, [-1, ])
+                # Predictions: ignoring all predictions with labels greater or equal than n_classes
+                raw_prediction_p1 = tf.reshape(parsing_out1, [-1, N_CLASSES])
+                raw_prediction_p1_100 = tf.reshape(
+                    parsing_out1_100, [-1, N_CLASSES])
+                raw_prediction_p1_075 = tf.reshape(
+                    parsing_out1_075, [-1, N_CLASSES])
+                raw_prediction_p1_050 = tf.reshape(
+                    parsing_out1_050, [-1, N_CLASSES])
 
-        indices = tf.squeeze(
-            tf.where(tf.less_equal(raw_gt, N_CLASSES - 1)), 1)
-        indices075 = tf.squeeze(
-            tf.where(tf.less_equal(raw_gt075, N_CLASSES - 1)), 1)
-        indices050 = tf.squeeze(
-            tf.where(tf.less_equal(raw_gt050, N_CLASSES - 1)), 1)
+                label_proc = prepare_label(next_label, tf.stack(parsing_out1.get_shape()[1:3]),
+                                           one_hot=False, num_classes=N_CLASSES)  # [batch_size, h, w]
+                label_proc075 = prepare_label(next_label, tf.stack(
+                    parsing_out1_075.get_shape()[1:3]), one_hot=False, num_classes=N_CLASSES)
+                label_proc050 = prepare_label(next_label, tf.stack(
+                    parsing_out1_050.get_shape()[1:3]), one_hot=False, num_classes=N_CLASSES)
 
-        gt = tf.cast(tf.gather(raw_gt, indices), tf.int32)
-        gt075 = tf.cast(tf.gather(raw_gt075, indices075), tf.int32)
-        gt050 = tf.cast(tf.gather(raw_gt050, indices050), tf.int32)
+                raw_gt = tf.reshape(label_proc, [-1, ])
+                raw_gt075 = tf.reshape(label_proc075, [-1, ])
+                raw_gt050 = tf.reshape(label_proc050, [-1, ])
 
-        prediction_p1 = tf.gather(raw_prediction_p1, indices)
-        prediction_p1_100 = tf.gather(raw_prediction_p1_100, indices)
-        prediction_p1_075 = tf.gather(
-            raw_prediction_p1_075, indices075)
-        prediction_p1_050 = tf.gather(
-            raw_prediction_p1_050, indices050)
+                indices = tf.squeeze(
+                    tf.where(tf.less_equal(raw_gt, N_CLASSES - 1)), 1)
+                indices075 = tf.squeeze(
+                    tf.where(tf.less_equal(raw_gt075, N_CLASSES - 1)), 1)
+                indices050 = tf.squeeze(
+                    tf.where(tf.less_equal(raw_gt050, N_CLASSES - 1)), 1)
 
-        # Pixel-wise softmax loss.
-        loss_p1 = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1, labels=gt))
-        loss_p1_100 = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_100, labels=gt))
-        loss_p1_075 = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_075, labels=gt075))
-        loss_p1_050 = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_050, labels=gt050))
+                gt = tf.cast(tf.gather(raw_gt, indices), tf.int32)
+                gt075 = tf.cast(tf.gather(raw_gt075, indices075), tf.int32)
+                gt050 = tf.cast(tf.gather(raw_gt050, indices050), tf.int32)
 
-        reduced_loss = loss_p1 + loss_p1_100 + loss_p1_075 + loss_p1_050
+                prediction_p1 = tf.gather(raw_prediction_p1, indices)
+                prediction_p1_100 = tf.gather(raw_prediction_p1_100, indices)
+                prediction_p1_075 = tf.gather(
+                    raw_prediction_p1_075, indices075)
+                prediction_p1_050 = tf.gather(
+                    raw_prediction_p1_050, indices050)
 
-        trainable_variable = tf.trainable_variables()
-        grads = optimizer.compute_gradients(
-            reduced_loss, var_list=trainable_variable)
+                # Pixel-wise softmax loss.
+                loss_p1 = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1, labels=gt))
+                loss_p1_100 = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_100, labels=gt))
+                loss_p1_075 = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_075, labels=gt075))
+                loss_p1_050 = tf.reduce_mean(
+                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=prediction_p1_050, labels=gt050))
 
-        tower_grads.append(grads)
+                reduced_loss = loss_p1 + loss_p1_100 + loss_p1_075 + loss_p1_050
 
-        tf.add_to_collection('loss_p1', loss_p1)
-        tf.add_to_collection('loss_p1_100', loss_p1_100)
-        tf.add_to_collection('loss_p1_075', loss_p1_075)
-        tf.add_to_collection('loss_p1_050', loss_p1_050)
-        tf.add_to_collection('reduced_loss', reduced_loss)
+                trainable_variable = tf.trainable_variables()
+                grads = optimizer.compute_gradients(
+                    reduced_loss, var_list=trainable_variable)
 
+                tower_grads.append(grads)
+
+                tf.add_to_collection('loss_p1', loss_p1)
+                tf.add_to_collection('loss_p1_100', loss_p1_100)
+                tf.add_to_collection('loss_p1_075', loss_p1_075)
+                tf.add_to_collection('loss_p1_050', loss_p1_050)
+                tf.add_to_collection('reduced_loss', reduced_loss)
+
+    # Average the gradients
+    grads_ave = average_gradients(tower_grads)
     # apply the gradients with our optimizers
-    train_op = optimizer.apply_gradients(grads)
+    train_op = optimizer.apply_gradients(grads_ave)
 
     loss_p1_ave = tf.reduce_mean(tf.get_collection('loss_p1'))
     loss_p1_100_ave = tf.reduce_mean(tf.get_collection('loss_p1_100'))
@@ -238,6 +252,42 @@ def main():
 
     coord.request_stop()
     coord.join(threads)
+
+
+def average_gradients(tower_grads):
+    """Calculate the average gradient for each shared variable across all towers.
+    Note that this function provides a synchronization point across all towers.
+    Args:
+      tower_grads: List of lists of (gradient, variable) tuples. The outer list
+        is over individual gradients. The inner list is over the gradient
+        calculation for each tower.
+    Returns:
+       List of pairs of (gradient, variable) where the gradient has been averaged
+       across all towers.
+    """
+    average_grads = []
+    for grad_and_vars in zip(*tower_grads):
+        # Note that each grad_and_vars looks like the following:
+        #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
+        grads = []
+        for g, _ in grad_and_vars:
+            # Add 0 dimension to the gradients to represent the tower.
+            expanded_g = tf.expand_dims(g, 0)
+
+            # Append on a 'tower' dimension which we will average over below.
+            grads.append(expanded_g)
+
+        # Average over the 'tower' dimension.
+        grad = tf.concat(axis=0, values=grads)
+        grad = tf.reduce_mean(grad, 0)
+
+        # Keep in mind that the Variables are redundant because they are shared
+        # across towers. So .. we will just return the first tower's pointer to
+        # the Variable.
+        v = grad_and_vars[0][1]
+        grad_and_var = (grad, v)
+        average_grads.append(grad_and_var)
+    return average_grads
 
 
 if __name__ == '__main__':
