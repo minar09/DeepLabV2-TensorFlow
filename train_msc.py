@@ -229,7 +229,7 @@ def main():
     else:
         print(" [!] Load failed...")
 
-        # Start queue threads.
+    # Start queue threads.
     threads = tf.train.start_queue_runners(coord=coord, sess=sess)
 
     # Iterate over training steps.

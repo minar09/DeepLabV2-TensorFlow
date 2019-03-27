@@ -34,7 +34,7 @@ except ImportError:
 # fn_anno = "pred.png"
 # fn_output = "output.png"
 
-OUTPUT_DIR = './output_crf/deeplab_resnet_10k/'
+OUTPUT_DIR = './output_crf/deeplabv2_10k/'
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
@@ -239,6 +239,77 @@ def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
     # d.stepInference(Q, tmp1, tmp2)
 
     # return crfimage, crfoutput
+
+
+# Original_image = Image which has to labelled
+# Annotated image = Which has been labelled by some technique( FCN in this case)
+# Output_image = The final output image after applying CRF
+# Use_2d = boolean variable
+# if use_2d = True specialised 2D fucntions will be applied
+# else Generic functions will be applied
+
+def crf_with_probs(original_input_image, predicted_probabilities, num_label, num_iter=5, use_2d=True):
+
+    # Setting up the CRF model
+    np.set_printoptions(threshold=10)
+    predicted_probabilities = predicted_probabilities.transpose((2, 0, 1))
+    # print("probs:", probs)
+    # print("probs shape:", probs.shape)
+
+    if use_2d:
+        d = dcrf.DenseCRF2D(original_input_image.shape[1], original_input_image.shape[0], num_label)
+
+        # get unary potentials (neg log probability)
+        U = unary_from_softmax(predicted_probabilities)
+        d.setUnaryEnergy(U)
+
+        # This adds the color-independent term, features are the locations only.
+        d.addPairwiseGaussian(sxy=(3, 3), compat=3, kernel=dcrf.DIAG_KERNEL,
+                              normalization=dcrf.NORMALIZE_SYMMETRIC)
+
+        # This adds the color-dependent term, i.e. features are (x,y,r,g,b).
+        d.addPairwiseBilateral(sxy=(10, 10), srgb=(13, 13, 13), rgbim=original_input_image,
+                               compat=10,
+                               kernel=dcrf.DIAG_KERNEL,
+                               normalization=dcrf.NORMALIZE_SYMMETRIC)
+
+    # Run Inference for 5 steps
+    Q = d.inference(num_iter)
+    # print(">>>>>>>>Qshape: ", Q.shape)
+    # Find out the most probable class for each pixel.
+    MAP = np.argmax(Q, axis=0)
+    output = MAP.reshape((original_input_image.shape[1], original_input_image.shape[0]))  # orig.shape[)
+    return output
+
+
+def crf_with_labels(original_input_image, predicted_segmentation, num_label, num_iter=5, use_2d=True):
+
+    # Setting up the CRF model
+    if use_2d:
+        d = dcrf.DenseCRF2D(original_input_image.shape[1], original_input_image.shape[0], num_label)
+
+        # get unary potentials (neg log probability)
+        U = unary_from_labels(predicted_segmentation, num_label,
+                              gt_prob=0.7, zero_unsure=False)
+        d.setUnaryEnergy(U)
+
+        # This adds the color-independent term, features are the locations only.
+        d.addPairwiseGaussian(sxy=(3, 3), compat=3, kernel=dcrf.DIAG_KERNEL,
+                              normalization=dcrf.NORMALIZE_SYMMETRIC)
+
+        # This adds the color-dependent term, i.e. features are (x,y,r,g,b).
+        d.addPairwiseBilateral(sxy=(10, 10), srgb=(13, 13, 13), rgbim=original_input_image,
+                               compat=10,
+                               kernel=dcrf.DIAG_KERNEL,
+                               normalization=dcrf.NORMALIZE_SYMMETRIC)
+
+    # Run Inference for 5 steps
+    Q = d.inference(num_iter)
+    MAP = np.argmax(Q, axis=0)
+    # original_image.shape[)
+    output = MAP.reshape((original_input_image.shape[1], original_input_image.shape[0]))
+
+    return output
 
 
 if __name__ == "__main__":

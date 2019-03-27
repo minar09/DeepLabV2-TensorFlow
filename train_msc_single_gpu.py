@@ -17,28 +17,31 @@ DATA_SET = "10k"
 N_CLASSES = 20
 BATCH_SIZE = 1
 NUM_IMAGES = 30462
-IMAGE_DIR = 'D:/Datasets/LIP/training/images/'
-LABEL_DIR = 'D:/Datasets/LIP/training/labels/'
+INPUT_SIZE = (384, 384)
+IMAGE_DIR = 'D:/Datasets/LIP/validation/images/'
+LABEL_DIR = 'D:/Datasets/LIP/validation/labels/'
 SNAPSHOT_DIR = './checkpoint/deeplabv2_LIP'
 LOG_DIR = './logs/deeplabv2_LIP'
 
 if DATA_SET == "10k":
     N_CLASSES = 18
     NUM_IMAGES = 9003
-    IMAGE_DIR = 'D:/Datasets/Dressup10k/images/training/'
-    LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/training/'
+    INPUT_SIZE = (224, 224)
+    BATCH_SIZE = 2
+    IMAGE_DIR = 'D:/Datasets/Dressup10k/images/validation/'
+    LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/validation/'
     SNAPSHOT_DIR = './checkpoint/deeplabv2_10k'
     LOG_DIR = './logs/deeplabv2_10k'
 
 elif DATA_SET == "CFPD":
     N_CLASSES = 23
     NUM_IMAGES = 1674
-    IMAGE_DIR = 'D:/Datasets/CFPD/trainimages/'
-    LABEL_DIR = 'D:/Datasets/CFPD/trainimages/'
+    INPUT_SIZE = (224, 224)
+    IMAGE_DIR = 'D:/Datasets/CFPD/testimages/'
+    LABEL_DIR = 'D:/Datasets/CFPD/testimages/'
     SNAPSHOT_DIR = './checkpoint/deeplabv2_CFPD'
     LOG_DIR = './logs/deeplabv2_CFPD'
 
-INPUT_SIZE = (384, 384)
 SHUFFLE = True
 RANDOM_SCALE = True
 RANDOM_MIRROR = True

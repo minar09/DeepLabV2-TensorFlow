@@ -1,9 +1,12 @@
 from __future__ import print_function
 from utils import *
 import tensorflow as tf
+import numpy as np
 import os
 import cv2
 from PIL import Image
+import EvalMetrics
+import denseCRF
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -16,6 +19,7 @@ DATA_SET = "10k"
 
 N_CLASSES = 20
 IMAGE_DIR = 'D:/Datasets/LIP/validation/images/'
+LABEL_DIR = 'D:/Datasets/LIP/training/labels/'
 NUM_STEPS = 10000  # Number of images in the validation set.
 RESTORE_FROM = './checkpoint/deeplabv2_LIP'
 OUTPUT_DIR = './output/deeplabv2_LIP/'
@@ -29,7 +33,7 @@ if DATA_SET == "10k":
 
 elif DATA_SET == "CFPD":
     N_CLASSES = 23
-    IMAGE_DIR = 'D:/Datasets/CFPD/testimges/'
+    IMAGE_DIR = 'D:/Datasets/CFPD/trainimges/'
     NUM_STEPS = 536  # Number of images in the validation set.
     RESTORE_FROM = './checkpoint/deeplabv2_CFPD'
     OUTPUT_DIR = './output/deeplabv2_CFPD/'
@@ -48,10 +52,14 @@ def main():
     h, w = INPUT_SIZE
     # Load reader.
     with tf.name_scope("create_inputs"):
-        reader = ImageReader(IMAGE_DIR, coord, DATA_SET)
+        reader = DataSetReader(IMAGE_DIR, LABEL_DIR, DATA_SET,
+                               INPUT_SIZE, False, False, False, coord)
+        # reader = DataSetReader(IMAGE_DIR, coord, DATA_SET)
         image = reader.image
+        label = reader.label
         image_rev = tf.reverse(image, tf.stack([1]))
         image_list = reader.image_list
+        label_list = reader.label_list
 
     image_batch_origin = tf.stack([image, image_rev])
     image_batch = tf.image.resize_images(image_batch_origin, [int(h), int(w)])
@@ -143,10 +151,16 @@ def main():
     # Start queue threads.
     threads = tf.train.start_queue_runners(coord=coord, sess=sess)
 
+    crossMats = list()
+    label_crf_crossMats = list()
+    prob_crf_crossMats = list()
+
+    probability = tf.nn.softmax(logits=parsing_out1, axis=3)
+
     # Iterate over training steps.
     for step in range(NUM_STEPS):
         try:
-            parsing_ = sess.run(prediction_all)
+            parsing_, probpred = sess.run(prediction_all, probability)
             if step % 100 == 0:
                 print('step {:d}'.format(step))
                 print(image_list[step])
@@ -158,8 +172,117 @@ def main():
             parsing_im.save('{}/{}_vis.png'.format(OUTPUT_DIR, img_id))
             cv2.imwrite('{}/{}.png'.format(OUTPUT_DIR, img_id),
                         parsing_[0, :, :, 0])
+
+            try:
+
+                # predprob = np.squeeze(predprob)
+                # valid_annotations = np.squeeze(valid_annotations, axis=3)
+
+                # Confusion matrix for this image prediction
+                crossMat = EvalMetrics.calculate_confusion_matrix(
+                    label[step].astype(
+                        np.uint8), parsing_[0, :, :, 0].astype(
+                        np.uint8), N_CLASSES)
+                crossMats.append(crossMat)
+
+                np.savetxt(OUTPUT_DIR +
+                           "Crossmatrix" +
+                           str(img_id) +
+                           ".csv", crossMat, fmt='%4i', delimiter=',')
+
+                # Save input, gt, pred, crf_pred, sum figures for this image
+
+                """ Generate CRF """
+                # 1. run CRF
+                crfwithlabeloutput = denseCRF.crf_with_labels(image[step].astype(
+                    np.uint8), parsing_[0, :, :, 0].astype(np.uint8), N_CLASSES)
+                crfwithprobsoutput = denseCRF.crf_with_probs(
+                    image[step].astype(np.uint8), probpred, N_CLASSES)
+
+                # 2. show result display
+                crfwithlabelpred = crfwithlabeloutput.astype(np.uint8)
+                crfwithprobspred = crfwithprobsoutput.astype(np.uint8)
+
+                msk = decode_labels(crfwithlabelpred, num_classes=N_CLASSES)
+                parsing_im = Image.fromarray(msk[0])
+                parsing_im.save('{}/labelcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
+                cv2.imwrite('{}/labelcrf_{}.png'.format(OUTPUT_DIR, img_id),
+                            crfwithlabelpred)
+
+                msk = decode_labels(crfwithprobspred, num_classes=N_CLASSES)
+                parsing_im = Image.fromarray(msk[0])
+                parsing_im.save('{}/probcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
+                cv2.imwrite('{}/probcrf_{}.png'.format(OUTPUT_DIR, img_id),
+                            crfwithprobspred)
+
+                # Confusion matrix for this image prediction with crf
+                prob_crf_crossMat = EvalMetrics.calculate_confusion_matrix(
+                    label[step].astype(
+                        np.uint8), crfwithprobsoutput.astype(
+                        np.uint8), N_CLASSES)
+                prob_crf_crossMats.append(prob_crf_crossMat)
+
+                label_crf_crossMat = EvalMetrics.calculate_confusion_matrix(
+                    label[step].astype(
+                        np.uint8), crfwithlabeloutput.astype(
+                        np.uint8), N_CLASSES)
+                label_crf_crossMats.append(label_crf_crossMat)
+
+                np.savetxt(OUTPUT_DIR +
+                           "prob_crf_Crossmatrix" +
+                           str(img_id) +
+                           ".csv", prob_crf_crossMat, fmt='%4i', delimiter=',')
+
+                np.savetxt(OUTPUT_DIR +
+                           "label_crf_Crossmatrix" +
+                           str(img_id) +
+                           ".csv", label_crf_crossMat, fmt='%4i', delimiter=',')
+
+            except Exception as e:
+                print(e)
+
         except Exception as err:
             print(err)
+
+    try:
+        total_cm = np.sum(crossMats, axis=0)
+        np.savetxt(
+            OUTPUT_DIR +
+            "Crossmatrix.csv",
+            total_cm,
+            fmt='%4i',
+            delimiter=',')
+
+        print(">>> Prediction results:")
+        EvalMetrics.show_result(total_cm, N_CLASSES)
+
+        # Prediction with CRF
+        prob_crf_total_cm = np.sum(prob_crf_crossMats, axis=0)
+        np.savetxt(
+            OUTPUT_DIR +
+            "prob_CRF_Crossmatrix.csv",
+            prob_crf_total_cm,
+            fmt='%4i',
+            delimiter=',')
+
+        label_crf_total_cm = np.sum(label_crf_crossMats, axis=0)
+        np.savetxt(
+            OUTPUT_DIR +
+            "label_CRF_Crossmatrix.csv",
+            label_crf_total_cm,
+            fmt='%4i',
+            delimiter=',')
+
+        print("\n")
+        print(">>> Prediction results (CRF (prob)):")
+        EvalMetrics.show_result(prob_crf_total_cm, N_CLASSES)
+
+        print("\n")
+        print(">>> Prediction results (CRF (label)):")
+        EvalMetrics.show_result(label_crf_total_cm, N_CLASSES)
+
+    except Exception as err:
+        print(err)
 
     coord.request_stop()
     coord.join(threads)
