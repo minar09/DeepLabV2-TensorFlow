@@ -88,31 +88,24 @@ def decode_labels(mask, num_classes=n_classes):
 
 
 def init_path():
-
-    val_anno_dir = 'E:/Dataset/LIP/output/parsing/val/'
-    val_id_list = 'E:/Dataset/LIP/list/val_id.txt'
-    val_img_dir = 'E:/Dataset/LIP/validation/images/'
+    val_prediction_dir = './output/deeplabv2_10k/'
+    val_img_dir = 'D:/Datasets/Dressup10k/images/validation/'
 
     val_img_paths = []
-    val_anno_paths = []
-    val_img_id = []
+    val_prediction_paths = []
+    val_img_ids = []
 
-    f = open(val_id_list, 'r')
-    for line in f:
-        val = line.strip("\n")
-        val_img_paths.append(val_img_dir + val + '.jpg')
-        val_anno_paths.append(val_anno_dir + val + '.png')
-        val_img_id.append(val)
+    all_files = os.listdir(val_img_dir)
+    for file in all_files:
+        val_img_paths.append(val_img_dir + file)
+        val_img_ids.append(file[:-4])
+        val_prediction_paths.append(val_prediction_dir + file[:-4] + ".png")
 
-    return val_img_paths, val_anno_paths, val_img_id
+    return val_prediction_paths, val_img_paths, val_img_ids
 
 
-def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
-    ##################################
-    ### Read images and annotation ###
-    ##################################
+def crf(fn_im, fn_anno, fn_output, num_classes=n_classes, use_2d=True):
     img = imread(fn_im)
-    # print(fn_anno.shape)
 
     # Convert the annotation's RGB color to a single 32-bit integer color 0xBBGGRR
     anno_rgb = imread(fn_anno).astype(np.uint32)
@@ -122,18 +115,10 @@ def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
     # Convert the 32bit integer color to 1, 2, ... labels.
     # Note that all-black, i.e. the value 0 for background will stay 0.
     colors, labels = np.unique(anno_lbl, return_inverse=True)
-    # labels = np.unique(fn_anno)
-    #print(colors, labels)
 
     # But remove the all-0 black, that won't exist in the MAP!
     # HAS_UNK = 0 in colors
     HAS_UNK = False
-    # if HAS_UNK:
-    # print("Found a full-black pixel in annotation image, assuming it means 'unknown' label, and will thus not be present in the output!")
-    # print("If 0 is an actual label for you, consider writing your own code, or simply giving your labels only non-zero values.")
-    # colors = colors[1:]
-    # else:
-    #    print("No single full-black pixel found in annotation image. Assuming there's no 'unknown' label!")
 
     # And create a mapping back from the labels to 32bit integer colors.
     colorize = np.empty((len(colors), 3), np.uint8)
@@ -143,33 +128,15 @@ def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
 
     # Compute the number of classes in the label image.
     # We subtract one because the number shouldn't include the value 0 which stands
-    # for "unknown" or "unsure".
-    #n_labels = len(set(labels.flat)) - int(HAS_UNK)
-    #print(n_labels, " labels", (" plus \"unknown\" 0: " if HAS_UNK else ""), set(labels.flat))
-    n_labels = NUM_OF_CLASSES
 
-    ###########################
-    ### Setup the CRF model ###
-    ###########################
-    #use_2d = False
-    #use_2d = True
     if use_2d:
-        #print("Using 2D specialized functions")
+        # Setting up the CRF model
 
-        # Example using the DenseCRF2D code
-        d = dcrf.DenseCRF2D(img.shape[1], img.shape[0], n_labels)
-
-        # get unary potentials (neg log probability)
-        U = unary_from_labels(
-            labels, n_labels, gt_prob=0.7, zero_unsure=HAS_UNK)
+        d = dcrf.DenseCRF2D(img.shape[1], img.shape[0], num_classes)
 
         # get unary potentials (neg log probability)
-        # processed_probabilities = fn_anno
-        # softmax = processed_probabilities.transpose((2, 0, 1))
-        # print(softmax.shape)
-        # U = unary_from_softmax(softmax, scale=None, clip=None)
-        # U = np.ascontiguousarray(U)
-
+        U = unary_from_labels(labels, num_classes,
+                              gt_prob=0.7, zero_unsure=False)
         d.setUnaryEnergy(U)
 
         # This adds the color-independent term, features are the locations only.
@@ -177,19 +144,20 @@ def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
                               normalization=dcrf.NORMALIZE_SYMMETRIC)
 
         # This adds the color-dependent term, i.e. features are (x,y,r,g,b).
-        d.addPairwiseBilateral(sxy=(80, 80), srgb=(13, 13, 13), rgbim=img,
+        d.addPairwiseBilateral(sxy=(10, 10), srgb=(13, 13, 13), rgbim=img,
                                compat=10,
                                kernel=dcrf.DIAG_KERNEL,
                                normalization=dcrf.NORMALIZE_SYMMETRIC)
+
     else:
         # print("Using generic 2D functions")
 
         # Example using the DenseCRF class and the util functions
-        d = dcrf.DenseCRF(img.shape[1] * img.shape[0], n_labels)
+        d = dcrf.DenseCRF(img.shape[1] * img.shape[0], num_classes)
 
         # get unary potentials (neg log probability)
         U = unary_from_labels(
-            labels, n_labels, gt_prob=0.7, zero_unsure=HAS_UNK)
+            labels, num_classes, gt_prob=0.7, zero_unsure=HAS_UNK)
         d.setUnaryEnergy(U)
 
         # This creates the color-independent features and then add them to the CRF
@@ -199,46 +167,28 @@ def crf(fn_im, fn_anno, fn_output, NUM_OF_CLASSES=n_classes, use_2d=True):
                             normalization=dcrf.NORMALIZE_SYMMETRIC)
 
         # This creates the color-dependent features and then add them to the CRF
-        feats = create_pairwise_bilateral(sdims=(80, 80), schan=(13, 13, 13),
+        feats = create_pairwise_bilateral(sdims=(10, 10), schan=(13, 13, 13),
                                           img=img, chdim=2)
         d.addPairwiseEnergy(feats, compat=10,
                             kernel=dcrf.DIAG_KERNEL,
                             normalization=dcrf.NORMALIZE_SYMMETRIC)
-
-    ####################################
-    ### Do inference and compute MAP ###
-    ####################################
 
     # Run five inference steps.
     Q = d.inference(5)
 
     # Find out the most probable class for each pixel.
     MAP = np.argmax(Q, axis=0)
-    # print(MAP.shape)
-    crfoutput = MAP.reshape((img.shape[0], img.shape[1]))
-    # print(crfoutput.shape)
-    # print(np.unique(crfoutput))
 
     # Convert the MAP (labels) back to the corresponding colors and save the image.
     # Note that there is no "unknown" here anymore, no matter what we had at first.
     MAP = colorize[MAP, :]
-    # print(MAP.shape)
-    # imwrite(fn_output+".png", MAP.reshape(img.shape))
-    crfimage = MAP.reshape(img.shape)
-    # print(crfimage.shape)
 
-    msk = decode_labels(crfimage, num_classes=NUM_OF_CLASSES)
+    crfimage = MAP.reshape(img.shape)
+
+    msk = decode_labels(crfimage, num_classes=num_classes)
     parsing_im = Image.fromarray(msk)
     parsing_im.save(fn_output+'_vis.png')
     cv2.imwrite(fn_output+'.png', crfimage[:, :, 0])
-
-    # Just randomly manually run inference iterations
-    # Q, tmp1, tmp2 = d.startInference()
-    # for i in range(5):
-    # print("KL-divergence at {}: {}".format(i, d.klDivergence(Q)))
-    # d.stepInference(Q, tmp1, tmp2)
-
-    # return crfimage, crfoutput
 
 
 # Original_image = Image which has to labelled
@@ -314,6 +264,6 @@ def crf_with_labels(original_input_image, predicted_segmentation, num_label, num
 
 if __name__ == "__main__":
 
-    val_img_paths, val_anno_paths, val_img_id = init_path()
+    val_anno_paths, val_img_paths, val_img_id = init_path()
     for img_path, anno_path, img_id in tqdm(zip(val_img_paths, val_anno_paths, val_img_id)):
         crf(img_path, anno_path, OUTPUT_DIR+img_id)
