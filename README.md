@@ -52,7 +52,12 @@ The single-scale model shows <code>86.9%</code> mIoU on the Pascal VOC 2012 vali
 
 The following command provides the description of each of the evaluation settings:
 ```bash
-python evaluate_msc.py --help
+python evaluate_msc.py
+```
+
+To apply CRF processing in evaluation run the following command:
+```bash
+python evaluate_msc_with_CRF.py
 ```
 
 ## Inference
