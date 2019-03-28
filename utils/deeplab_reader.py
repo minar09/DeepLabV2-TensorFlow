@@ -129,8 +129,12 @@ def read_labeled_image_list(image_dir, label_dir, data_set="LIP"):
     for filename in glob.glob(image_dir + '*.jpg'):  # assuming jpg files
         image = filename
         mask = filename.replace(
-            "images", "annotations").replace(
+            "images", "labels").replace(
             ".jpg", ".png")
+        if data_set == "10k":
+            mask = filename.replace(
+                "images", "annotations").replace(
+                ".jpg", ".png")
 
         images.append(image)
         masks.append(mask)
@@ -211,7 +215,7 @@ class DataSetReader(object):
     '''
 
     def __init__(self, data_dir, data_list, data_id_list, input_size, random_scale,
-                 random_mirror, shuffle, coord):
+                 random_mirror, shuffle, coord, data_set="LIP"):
         '''Initialise an ImageReader.
 
         Args:
@@ -222,15 +226,17 @@ class DataSetReader(object):
           random_scale: whether to randomly scale the images prior to random crop.
           random_mirror: whether to randomly mirror the images prior to random crop.
           coord: TensorFlow queue coordinator.
+          data_set: name of data set.
         '''
         self.data_dir = data_dir
         self.data_list = data_list
         self.data_id_list = data_id_list
         self.input_size = input_size
         self.coord = coord
+        self.data_set = data_set
 
         self.image_list, self.label_list = read_labeled_image_list(
-            self.data_dir, self.data_list)
+            self.data_dir, self.data_list, self.data_set)
         self.images = tf.convert_to_tensor(self.image_list, dtype=tf.string)
         self.labels = tf.convert_to_tensor(self.label_list, dtype=tf.string)
 

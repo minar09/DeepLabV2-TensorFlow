@@ -60,7 +60,7 @@ def main():
     # Load reader.
     with tf.name_scope("create_inputs"):
         reader = DataSetReader(IMAGE_DIR, LABEL_DIR, DATA_SET,
-                               INPUT_SIZE, False, False, False, coord)
+                               INPUT_SIZE, False, False, False, coord, DATA_SET)
         # reader = DataSetReader(IMAGE_DIR, coord, DATA_SET)
         image = reader.image
         label = reader.label
