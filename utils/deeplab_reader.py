@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import random
 from tqdm import tqdm
+import glob
 
 IGNORE_LABEL = 255
 IMG_MEAN = np.array((104.00698793, 116.66876762,
@@ -121,26 +122,36 @@ def read_labeled_image_list(image_dir, label_dir, data_set="LIP"):
     Returns:
       Two lists with all file names for images and masks, respectively.
     """
-    file_names = os.listdir(image_dir)
+
     images = []
     masks = []
 
-    for line in tqdm(file_names):
+    for filename in glob.glob(image_dir + '*.jpg'):  # assuming jpg files
+        image = filename
+        mask = filename.replace(
+            "images", "annotations").replace(
+            ".jpg", ".png")
+
+        images.append(image)
+        masks.append(mask)
+
+    """file_names = os.listdir(image_dir)
+    for filename in tqdm(file_names):
         image = None
         mask = None
 
         if data_set == "CFPD":
-            if ".png" in line:
+            if ".png" in filename:
                 continue
 
         try:
-            image = image_dir + line
-            mask = label_dir + line.replace(".jpg", ".png")
+            image = image_dir + filename
+            mask = label_dir + filename.replace(".jpg", ".png")
         except ValueError:  # Adhoc for test.
-            print("Error: ", line)
+            print("Error: ", filename)
 
         images.append(image)
-        masks.append(mask)
+        masks.append(mask)"""
 
     return images, masks
 

@@ -175,12 +175,13 @@ def main():
     # Iterate over training steps.
     for step in range(NUM_STEPS):
         try:
-            parsing_ = sess.run(prediction_all)
+            parsing_, probpred = sess.run([prediction_all, probability])
             if step % 100 == 0:
                 print('step {:d}'.format(step))
                 print(image_list[step])
             img_split = image_list[step].split('/')
-            img_id = img_split[-1][:-4]
+            img_split = img_split[-1].split('\\')[1]    # extra split for modified file readers
+            img_id = img_split[:-4]
 
             msk = decode_labels(parsing_, num_classes=N_CLASSES)
             parsing_im = Image.fromarray(msk[0])
@@ -190,7 +191,7 @@ def main():
 
             try:
                 # feed_dict = {step_ph: step}
-                probpred = sess.run(probability)
+                # probpred = sess.run(probability)
 
                 # inp, gt = reader.dequeue(1)
                 inp, gt = validation_dataset_reader.next_batch(1)
