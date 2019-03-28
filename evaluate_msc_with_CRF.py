@@ -22,7 +22,7 @@ DATA_SET = "10k"
 
 N_CLASSES = 20
 IMAGE_DIR = 'D:/Datasets/LIP/validation/images/'
-LABEL_DIR = 'D:/Datasets/LIP/training/labels/'
+LABEL_DIR = 'D:/Datasets/LIP/validation/labels/'
 NUM_STEPS = 10000  # Number of images in the validation set.
 RESTORE_FROM = './checkpoint/deeplabv2_LIP'
 OUTPUT_DIR = './output/deeplabv2_LIP/'
@@ -39,7 +39,7 @@ if DATA_SET == "10k":
 
 elif DATA_SET == "CFPD":
     N_CLASSES = 23
-    IMAGE_DIR = 'D:/Datasets/CFPD/trainimges/'
+    IMAGE_DIR = 'D:/Datasets/CFPD/valimages/'
     NUM_STEPS = 536  # Number of images in the validation set.
     RESTORE_FROM = './checkpoint/deeplabv2_CFPD'
     OUTPUT_DIR = './output/deeplabv2_CFPD/'
@@ -199,7 +199,7 @@ def main():
                 parsing_im = Image.fromarray(msk[0])
                 parsing_im.save('{}/gt_{}_vis.png'.format(OUTPUT_DIR, img_id))
                 cv2.imwrite('{}/gt_{}.png'.format(OUTPUT_DIR, img_id),
-                            parsing_[0, :, :, 0])
+                            gt[0, :, :, 0])
 
                 inp = inp[0]
                 gt = gt[0]
