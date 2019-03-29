@@ -15,16 +15,27 @@ bDebug = False
 
 def init_path():
     # val_prediction_dir = './output/deeplabv2_10k/'
-    val_prediction_dir = './output_crf/deeplabv2_10k/'
-    val_gt_dir = 'D:/Datasets/Dressup10k/annotations/validation/'
+    # val_gt_dir = 'D:/Datasets/Dressup10k/annotations/validation/'
+
+    # val_prediction_dir = './output/deeplabv2_10k/'
+    # val_gt_dir = './output/deeplabv2_10k/'
+
+    val_prediction_dir = './output/deeplabv2_LIP/'
+    val_gt_dir = './output/deeplabv2_LIP/'
 
     val_gt_paths = []
     val_prediction_paths = []
 
     all_files = os.listdir(val_gt_dir)
 
+    """for file in all_files:
+        val_gt_paths.append(val_gt_dir + file)
+        val_prediction_paths.append(val_prediction_dir + file)"""
+
     for file in all_files:
+        if file.startswith("gt_") and "_vis" not in file:
             val_gt_paths.append(val_gt_dir + file)
+        if file.startswith("pred_") and "_vis" not in file:
             val_prediction_paths.append(val_prediction_dir + file)
 
     return val_prediction_paths, val_gt_paths
