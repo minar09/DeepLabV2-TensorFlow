@@ -27,6 +27,27 @@ lip_label_colours = [(0, 0, 0),  # 0=Background
                      ]
 
 # colour map for 10k dataset
+dressup10k_label_colors =  ['black', #  "background", #     0
+                 'sienna', #"hat", #            1
+                 'gray', #"hair", #           2
+                 'navy', #"sunglass", #       3
+                 'red',  #"upper-clothes", #  4
+                 'gold', #"skirt",  #          5
+                 'blue', #"pants",  #          6
+                 'seagreen', #"dress", #          7
+                 'darkorchid',  #"belt", #           8
+                 'firebrick',  #   "left-shoe", #      9
+                 'darksalmon', #"right-shoe", #     10
+                 'moccasin', #"face",  #           11
+                 'darkgreen', #"left-leg", #       12
+                 'royalblue', #"right-leg", #      13
+                 'chartreuse', #"left-arm",#       14
+                 'paleturquoise',  #"right-arm", #      15
+                 'darkcyan', #  "bag", #            16
+                 'deepskyblue' #"scarf" #          17
+        ]
+
+# like LIP
 fashion_label_colours = [(0, 0, 0),  # 0=Background
                          (128, 0, 0),  # hat
                          (255, 0, 0),  # hair
@@ -66,7 +87,8 @@ def decode_labels(mask, num_images=1, num_classes=20):
     if num_classes == 20:
         label_colours = lip_label_colours
     elif num_classes == 18:
-        label_colours = fashion_label_colours
+        # label_colours = fashion_label_colours
+        label_colours = dressup10k_label_colors
 
     n, h, w, c = mask.shape
     assert(n >= num_images), 'Batch size %d should be greater or equal than number of images to save %d.' % (
