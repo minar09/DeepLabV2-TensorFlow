@@ -20,7 +20,7 @@ import time
 import scipy.misc as misc
 from PIL import Image
 from tqdm import tqdm
-from Utils import utils
+from utils import utils
 
 # Get im{read,write} from somewhere.
 try:
