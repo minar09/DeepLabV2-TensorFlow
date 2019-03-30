@@ -119,7 +119,8 @@ def main():
         tf.stack([head_output, tail_output_rev]), axis=0)
     raw_output_all = tf.expand_dims(raw_output_all, dim=0)
     raw_output_all = tf.argmax(raw_output_all, dimension=3)
-    prediction_all = tf.expand_dims(raw_output_all, dim=3)  # Create 4-d tensor.
+    # Create 4-d tensor.
+    prediction_all = tf.expand_dims(raw_output_all, dim=3)
 
     # Which variables to load.
     restore_var = tf.global_variables()

@@ -27,7 +27,7 @@ NUM_STEPS = 10000  # Number of images in the validation set.
 RESTORE_FROM = './checkpoint/deeplabv2_LIP'
 OUTPUT_DIR = './output/deeplabv2_LIP/'
 train_records, valid_records = read_LIP_data.read_dataset(
-            IMAGE_DIR)
+    IMAGE_DIR)
 
 if DATA_SET == "10k":
     N_CLASSES = 18
@@ -135,7 +135,8 @@ def main():
     raw_output_all = tf.expand_dims(raw_output_all, dim=0)
     logits = raw_output_all
     raw_output_all = tf.argmax(raw_output_all, dimension=3)
-    prediction_all = tf.expand_dims(raw_output_all, dim=3)  # Create 4-d tensor.
+    # Create 4-d tensor.
+    prediction_all = tf.expand_dims(raw_output_all, dim=3)
 
     # Which variables to load.
     restore_var = tf.global_variables()
@@ -180,7 +181,8 @@ def main():
                 print('step {:d}'.format(step))
                 print(image_list[step])
             img_split = image_list[step].split('/')
-            img_split = img_split[-1].split('\\')[1]    # extra split for modified file readers
+            # extra split for modified file readers
+            img_split = img_split[-1].split('\\')[1]
             img_id = img_split[:-4]
 
             msk = decode_labels(parsing_, num_classes=N_CLASSES)
@@ -234,20 +236,28 @@ def main():
                 crfwithlabelpred = crfwithlabeloutput.astype(np.uint8)
                 crfwithprobspred = crfwithprobsoutput.astype(np.uint8)
 
-                crfwithlabelpred_expanded = np.expand_dims(crfwithlabelpred, axis=0)
-                crfwithlabelpred_expanded = np.expand_dims(crfwithlabelpred_expanded, axis=3)
-                crfwithprobspred_expanded = np.expand_dims(crfwithprobspred, axis=0)
-                crfwithprobspred_expanded = np.expand_dims(crfwithprobspred_expanded, axis=3)
+                crfwithlabelpred_expanded = np.expand_dims(
+                    crfwithlabelpred, axis=0)
+                crfwithlabelpred_expanded = np.expand_dims(
+                    crfwithlabelpred_expanded, axis=3)
+                crfwithprobspred_expanded = np.expand_dims(
+                    crfwithprobspred, axis=0)
+                crfwithprobspred_expanded = np.expand_dims(
+                    crfwithprobspred_expanded, axis=3)
 
-                msk = decode_labels(crfwithlabelpred_expanded, num_classes=N_CLASSES)
+                msk = decode_labels(
+                    crfwithlabelpred_expanded, num_classes=N_CLASSES)
                 parsing_im = Image.fromarray(msk[0])
-                parsing_im.save('{}/labelcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
+                parsing_im.save(
+                    '{}/labelcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
                 cv2.imwrite('{}/labelcrf_{}.png'.format(OUTPUT_DIR, img_id),
                             crfwithlabelpred)
 
-                msk = decode_labels(crfwithprobspred_expanded, num_classes=N_CLASSES)
+                msk = decode_labels(
+                    crfwithprobspred_expanded, num_classes=N_CLASSES)
                 parsing_im = Image.fromarray(msk[0])
-                parsing_im.save('{}/probcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
+                parsing_im.save(
+                    '{}/probcrf_{}_vis.png'.format(OUTPUT_DIR, img_id))
                 cv2.imwrite('{}/probcrf_{}.png'.format(OUTPUT_DIR, img_id),
                             crfwithprobspred)
 

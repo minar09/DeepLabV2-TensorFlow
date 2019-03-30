@@ -90,7 +90,8 @@ class ImageReader(object):
         self.image_list = read_labeled_image_list(
             self.data_dir, self.data_set)
         self.images = tf.convert_to_tensor(self.image_list, dtype=tf.string)
-        self.queue = tf.train.slice_input_producer([self.images], shuffle=False)  # not shuffling if it is val
+        self.queue = tf.train.slice_input_producer(
+            [self.images], shuffle=False)  # not shuffling if it is val
         self.image = read_images_from_disk(
             self.queue)
 

@@ -97,10 +97,14 @@ def main():
                     reuse1 = True
                     reuse2 = True
 
-                next_image = image_batch[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
-                next_image075 = image_batch075[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
-                next_image050 = image_batch050[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
-                next_label = label_batch[i * BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_image = image_batch[i *
+                                         BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_image075 = image_batch075[i *
+                                               BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_image050 = image_batch050[i *
+                                               BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
+                next_label = label_batch[i *
+                                         BATCH_ITERATION:(i + 1) * BATCH_ITERATION, :]
 
                 # Create network.
                 with tf.variable_scope('', reuse=reuse1):

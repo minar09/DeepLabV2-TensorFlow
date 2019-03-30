@@ -124,7 +124,7 @@ class PoseCreateLayer(object):
 
             for h in range(height):
                 for w in range(width):
-                    cls_ =  bottom_data[h * width + w]
+                    cls_ = bottom_data[h * width + w]
                     joint_id = self.select_joint(self.num_joint_, cls_)
                     if 0 <= joint_id < self.num_joint_:
                         x_sum_vector[joint_id].push_back(w)
@@ -135,8 +135,10 @@ class PoseCreateLayer(object):
 
             for n in range(self.num_joint_):
                 if x_sum_vector[n].size() > 0 and y_sum_vector[n].size() > 0:
-                    ave_x = np.sum(x_sum_vector[n].begin(), x_sum_vector[n].end(), 0.0) / x_sum_vector[n].size()
-                    ave_y = np.sum(y_sum_vector[n].begin(), y_sum_vector[n].end(), 0.0) / y_sum_vector[n].size()
+                    ave_x = np.sum(x_sum_vector[n].begin(
+                    ), x_sum_vector[n].end(), 0.0) / x_sum_vector[n].size()
+                    ave_y = np.sum(y_sum_vector[n].begin(
+                    ), y_sum_vector[n].end(), 0.0) / y_sum_vector[n].size()
                     # LOG(INFO) << "ave_x: " << ave_x << "  ave_y:" << ave_y
                     top_data[n*2] = int(ave_x)
                     top_data[n*2+1] = int(ave_y)

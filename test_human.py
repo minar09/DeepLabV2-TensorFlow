@@ -20,8 +20,8 @@ def init_path():
     all_files = os.listdir(val_gt_dir)
 
     for file in all_files:
-            val_gt_paths.append(val_gt_dir + file)
-            val_prediction_paths.append(val_prediction_dir + file)
+        val_gt_paths.append(val_gt_dir + file)
+        val_prediction_paths.append(val_prediction_dir + file)
 
     return val_prediction_paths, val_gt_paths
 
