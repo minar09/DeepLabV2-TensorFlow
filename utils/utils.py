@@ -7,7 +7,7 @@ import os
 lip_label_colours = [(0, 0, 0),  # 0=Background
                      (128, 0, 0),  # 1=Hat
                      (255, 0, 0),  # 2=Hair
-                     (0, 85, 0),   # 3=Glove
+                     (0, 85, 0),  # 3=Glove
                      (170, 0, 51),  # 4=Sunglasses
                      (255, 85, 0),  # 5=UpperClothes
                      (0, 0, 85),  # 6=Dress
@@ -27,25 +27,25 @@ lip_label_colours = [(0, 0, 0),  # 0=Background
                      ]
 
 # colour map for 10k dataset
-dressup10k_label_colors =  ['black', #  "background", #     0
-                 'sienna', #"hat", #            1
-                 'gray', #"hair", #           2
-                 'navy', #"sunglass", #       3
-                 'red',  #"upper-clothes", #  4
-                 'gold', #"skirt",  #          5
-                 'blue', #"pants",  #          6
-                 'seagreen', #"dress", #          7
-                 'darkorchid',  #"belt", #           8
-                 'firebrick',  #   "left-shoe", #      9
-                 'darksalmon', #"right-shoe", #     10
-                 'moccasin', #"face",  #           11
-                 'darkgreen', #"left-leg", #       12
-                 'royalblue', #"right-leg", #      13
-                 'chartreuse', #"left-arm",#       14
-                 'paleturquoise',  #"right-arm", #      15
-                 'darkcyan', #  "bag", #            16
-                 'deepskyblue' #"scarf" #          17
-        ]
+dressup10k_label_colors = [(0, 0, 0),  # 'black', #  "background", #     0
+                           (160, 82, 45),  # 'sienna', #"hat", #            1
+                           (128, 128, 128),  # 'gray', #"hair", #           2
+                           (0, 0, 128),  # 'navy', #"sunglass", #       3
+                           (255, 0, 0),  # 'red',  #"upper-clothes", #  4
+                           (255, 215, 0),  # 'gold', #"skirt",  #          5
+                           (0, 0, 255),  # 'blue', #"pants",  #          6
+                           (46, 139, 87),  # 'seagreen', #"dress", #          7
+                           (153, 50, 204),  # 'darkorchid',  #"belt", #           8
+                           (178, 34, 34),  # 'firebrick',  #   "left-shoe", #      9
+                           (233, 150, 122),  # 'darksalmon', #"right-shoe", #     10
+                           (255, 228, 181),  # 'moccasin', #"face",  #           11
+                           (0, 100, 0),  # 'darkgreen', #"left-leg", #       12
+                           (65, 105, 225),  # 'royalblue', #"right-leg", #      13
+                           (127, 255, 0),  # 'chartreuse', #"left-arm",#       14
+                           (175, 238, 238),  # 'paleturquoise',  #"right-arm", #      15
+                           (0, 139, 139),  # 'darkcyan', #  "bag", #            16
+                           (0, 191, 255),  # 'deepskyblue' #"scarf" #          17
+                           ]
 
 # like LIP
 fashion_label_colours = [(0, 0, 0),  # 0=Background
@@ -91,7 +91,7 @@ def decode_labels(mask, num_images=1, num_classes=20):
         label_colours = dressup10k_label_colors
 
     n, h, w, c = mask.shape
-    assert(n >= num_images), 'Batch size %d should be greater or equal than number of images to save %d.' % (
+    assert (n >= num_images), 'Batch size %d should be greater or equal than number of images to save %d.' % (
         n, num_images)
     outputs = np.zeros((num_images, h, w, 3), dtype=np.uint8)
     for i in range(num_images):
@@ -138,7 +138,7 @@ def inv_preprocess(imgs, num_images):
       The batch of the size num_images with the same spatial dimensions as the input.
     """
     n, h, w, c = imgs.shape
-    assert(n >= num_images), 'Batch size %d should be greater or equal than number of images to save %d.' % (
+    assert (n >= num_images), 'Batch size %d should be greater or equal than number of images to save %d.' % (
         n, num_images)
     outputs = np.zeros((num_images, h, w, c), dtype=np.uint8)
     for i in range(num_images):
