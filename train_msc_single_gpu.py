@@ -35,6 +35,7 @@ if DATA_SET == "10k":
 
 elif DATA_SET == "CFPD":
     N_CLASSES = 23
+    BATCH_SIZE = 1
     NUM_IMAGES = 1674
     INPUT_SIZE = (224, 224)
     IMAGE_DIR = 'D:/Datasets/CFPD/testimages/'
