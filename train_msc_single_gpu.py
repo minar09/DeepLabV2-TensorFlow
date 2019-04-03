@@ -18,8 +18,8 @@ N_CLASSES = 20
 BATCH_SIZE = 1
 NUM_IMAGES = 30462
 INPUT_SIZE = (384, 384)
-IMAGE_DIR = 'D:/Datasets/LIP/validation/images/'
-LABEL_DIR = 'D:/Datasets/LIP/validation/labels/'
+IMAGE_DIR = 'D:/Datasets/LIP/training/images/'
+LABEL_DIR = 'D:/Datasets/LIP/training/labels/'
 SNAPSHOT_DIR = './checkpoint/deeplabv2_LIP'
 LOG_DIR = './logs/deeplabv2_LIP'
 
@@ -28,8 +28,8 @@ if DATA_SET == "10k":
     NUM_IMAGES = 9003
     INPUT_SIZE = (224, 224)
     BATCH_SIZE = 2
-    IMAGE_DIR = 'D:/Datasets/Dressup10k/images/validation/'
-    LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/validation/'
+    IMAGE_DIR = 'D:/Datasets/Dressup10k/images/training/'
+    LABEL_DIR = 'D:/Datasets/Dressup10k/annotations/training/'
     SNAPSHOT_DIR = './checkpoint/deeplabv2_10k'
     LOG_DIR = './logs/deeplabv2_10k'
 
@@ -38,8 +38,8 @@ elif DATA_SET == "CFPD":
     BATCH_SIZE = 1
     NUM_IMAGES = 1674
     INPUT_SIZE = (224, 224)
-    IMAGE_DIR = 'D:/Datasets/CFPD/testimages/'
-    LABEL_DIR = 'D:/Datasets/CFPD/testimages/'
+    IMAGE_DIR = 'D:/Datasets/CFPD/trainimages/'
+    LABEL_DIR = 'D:/Datasets/CFPD/trainimages/'
     SNAPSHOT_DIR = './checkpoint/deeplabv2_CFPD'
     LOG_DIR = './logs/deeplabv2_CFPD'
 
@@ -66,7 +66,7 @@ def main():
     # Load reader.
     with tf.name_scope("create_inputs"):
         reader = DataSetReader(IMAGE_DIR, LABEL_DIR, DATA_SET,
-                               INPUT_SIZE, RANDOM_SCALE, RANDOM_MIRROR, SHUFFLE, coord)
+                               INPUT_SIZE, RANDOM_SCALE, RANDOM_MIRROR, SHUFFLE, coord, DATA_SET)
         image_batch, label_batch = reader.dequeue(BATCH_SIZE)
         image_batch075 = tf.image.resize_images(
             image_batch, [int(h * 0.75), int(w * 0.75)])
