@@ -266,7 +266,10 @@ def main():
             fmt='%4i',
             delimiter=',')
 
-        print(">>> Prediction results:")
+        print("\n>>> Prediction results (Our functions):")
+        EvalMetrics.calculate_eval_metrics_from_confusion_matrix(total_cm, N_CLASSES)
+
+        print("\n>>> Prediction results (LIP functions):")
         EvalMetrics.show_result(total_cm, N_CLASSES)
 
         # Prediction with CRF
@@ -279,7 +282,7 @@ def main():
             delimiter=',')
 
         print("\n")
-        print(">>> Prediction results (CRF (prob)):")
+        print(">>> Prediction results (CRF):")
         EvalMetrics.show_result(crf_total_cm, N_CLASSES)
 
     except Exception as err:
